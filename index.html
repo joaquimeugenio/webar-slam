@@ -6,24 +6,29 @@
   <title>WebAR SLAM Starter</title>
   <style>
     html, body { margin: 0; padding: 0; overflow: hidden; }
-    canvas { display: block; }
+    canvas, video { position: absolute; top: 0; left: 0; }
     #videoElement { display: none; }
+    #videoCanvas { z-index: 1; }
+    #threeCanvas { z-index: 2; pointer-events: none; }
   </style>
 </head>
 <body>
   <video id="videoElement" autoplay playsinline></video>
-  <canvas id="canvasOutput"></canvas>
+  <canvas id="videoCanvas"></canvas>
+  <canvas id="threeCanvas"></canvas>
+
   <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
   <script src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript"></script>
   <script>
     const video = document.getElementById('videoElement');
-    const canvas = document.getElementById('canvasOutput');
-    const ctx = canvas.getContext('2d');
+    const videoCanvas = document.getElementById('videoCanvas');
+    const threeCanvas = document.getElementById('threeCanvas');
+    const ctx = videoCanvas.getContext('2d');
 
     // Init Three.js
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 100);
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
 
     const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
@@ -39,11 +44,14 @@
         video.srcObject = stream;
         video.onloadedmetadata = () => {
           video.play();
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
+          videoCanvas.width = threeCanvas.width = video.videoWidth;
+          videoCanvas.height = threeCanvas.height = video.videoHeight;
           processFrame();
           animate();
         };
+      })
+      .catch(err => {
+        console.error("Camera access error:", err);
       });
 
     // Animate Three.js scene
@@ -59,8 +67,8 @@
         return;
       }
 
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      let src = cv.imread(canvas);
+      ctx.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
+      let src = cv.imread(videoCanvas);
       let gray = new cv.Mat();
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
