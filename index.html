@@ -247,9 +247,24 @@
             
             async initialize(video) {
                 try {
+                    console.log('Inicializando SLAM Engine...');
                     this.video = video;
+                    
+                    // Wait for video dimensions to be available
+                    let attempts = 0;
+                    while ((video.videoWidth === 0 || video.videoHeight === 0) && attempts < 50) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        attempts++;
+                    }
+                    
+                    if (video.videoWidth === 0 || video.videoHeight === 0) {
+                        throw new Error('Não foi possível obter dimensões do vídeo');
+                    }
+                    
                     this.width = video.videoWidth;
                     this.height = video.videoHeight;
+                    
+                    console.log('Dimensões do vídeo:', this.width, 'x', this.height);
                     
                     // Inicializar matriz da câmera (aproximada)
                     const fx = this.width * 0.8;
@@ -268,65 +283,102 @@
                     this.processCanvas.height = this.height;
                     this.processCtx = this.processCanvas.getContext('2d');
                     
+                    if (!this.processCtx) {
+                        throw new Error('Não foi possível criar contexto de canvas');
+                    }
+                    
                     // Buffers para optical flow
                     this.prevGrayData = null;
                     this.currentGrayData = null;
+                    
+                    // Test frame processing
+                    try {
+                        this.processCtx.drawImage(video, 0, 0, this.width, this.height);
+                        const testData = this.processCtx.getImageData(0, 0, this.width, this.height);
+                        console.log('Teste de processamento de frame bem-sucedido');
+                    } catch (e) {
+                        console.warn('Aviso no teste de frame:', e.message);
+                        // Continue anyway, might work during actual processing
+                    }
                     
                     this.isInitialized = true;
                     console.log('SLAM Engine inicializado com sucesso');
                     
                 } catch (error) {
                     console.error('Erro ao inicializar SLAM Engine:', error);
+                    this.isInitialized = false;
                     throw error;
                 }
             }
             
             processFrame() {
-                if (!this.isInitialized || !this.video) return null;
+                if (!this.isInitialized || !this.video) {
+                    console.warn('SLAM não inicializado ou vídeo não disponível');
+                    return null;
+                }
                 
                 const startTime = performance.now();
                 
-                // Capturar frame atual
-                this.processCtx.drawImage(this.video, 0, 0, this.width, this.height);
-                const imageData = this.processCtx.getImageData(0, 0, this.width, this.height);
-                
-                // Converter para escala de cinza
-                this.currentGrayData = this.rgbToGrayscale(imageData);
-                
-                // Detectar features
-                const newFeatures = this.detectFeatures(this.currentGrayData);
-                
-                // Rastrear features existentes
-                if (this.prevGrayData && this.features.length > 0) {
-                    this.trackFeatures();
+                try {
+                    // Verify video is playing
+                    if (this.video.paused || this.video.ended) {
+                        console.warn('Vídeo pausado ou terminado');
+                        return null;
+                    }
+                    
+                    // Capturar frame atual
+                    this.processCtx.drawImage(this.video, 0, 0, this.width, this.height);
+                    const imageData = this.processCtx.getImageData(0, 0, this.width, this.height);
+                    
+                    // Converter para escala de cinza
+                    this.currentGrayData = this.rgbToGrayscale(imageData);
+                    
+                    // Detectar features
+                    const newFeatures = this.detectFeatures(this.currentGrayData);
+                    
+                    // Rastrear features existentes
+                    if (this.prevGrayData && this.features.length > 0) {
+                        this.trackFeatures();
+                    }
+                    
+                    // Atualizar features
+                    this.updateFeatures(newFeatures);
+                    
+                    // Estimar pose
+                    this.estimatePose();
+                    
+                    // Detectar ground plane
+                    this.detectGroundPlane();
+                    
+                    // Atualizar histórico
+                    this.updateMotionHistory();
+                    
+                    // Calcular FPS
+                    this.updateFPS(startTime);
+                    
+                    // Salvar frame anterior
+                    this.prevGrayData = this.currentGrayData;
+                    this.frameCount++;
+                    
+                    return {
+                        features: this.features,
+                        pose: this.currentPose,
+                        groundPlane: this.groundPlane,
+                        trackingState: this.trackingState,
+                        fps: this.fps
+                    };
+                    
+                } catch (error) {
+                    console.error('Erro no processamento do frame:', error);
+                    // Return a basic result to keep the system running
+                    return {
+                        features: this.features || [],
+                        pose: this.currentPose,
+                        groundPlane: this.groundPlane,
+                        trackingState: 'ERROR',
+                        fps: this.fps
+                    };
                 }
-                
-                // Atualizar features
-                this.updateFeatures(newFeatures);
-                
-                // Estimar pose
-                this.estimatePose();
-                
-                // Detectar ground plane
-                this.detectGroundPlane();
-                
-                // Atualizar histórico
-                this.updateMotionHistory();
-                
-                // Calcular FPS
-                this.updateFPS(startTime);
-                
-                // Salvar frame anterior
-                this.prevGrayData = this.currentGrayData;
-                this.frameCount++;
-                
-                return {
-                    features: this.features,
-                    pose: this.currentPose,
-                    groundPlane: this.groundPlane,
-                    trackingState: this.trackingState,
-                    fps: this.fps
-                };
             }
             
             rgbToGrayscale(imageData) {
@@ -833,26 +885,62 @@
                     this.loading.style.display = 'flex';
                     this.updateLoadingText('Solicitando acesso à câmera...');
                     
-                    // Request camera access
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: 'environment',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
+                    // Request camera access with fallback options
+                    let stream;
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                facingMode: 'environment',
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            }
+                        });
+                    } catch (e) {
+                        console.log('Tentando com configurações simplificadas...');
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: true
+                        });
+                    }
                     
                     this.video.srcObject = stream;
                     
-                    // Wait for video to load
-                    await new Promise((resolve) => {
+                    this.updateLoadingText('Aguardando vídeo carregar...');
+                    
+                    // Wait for video to load with timeout
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error('Timeout ao carregar vídeo'));
+                        }, 10000);
+                        
                         this.video.onloadedmetadata = () => {
-                            this.video.play();
-                            resolve();
+                            clearTimeout(timeout);
+                            console.log('Vídeo carregado:', this.video.videoWidth, 'x', this.video.videoHeight);
+                            this.video.play().then(() => {
+                                // Wait a bit more for the video to actually start playing
+                                setTimeout(resolve, 500);
+                            }).catch(reject);
+                        };
+                        
+                        this.video.onerror = () => {
+                            clearTimeout(timeout);
+                            reject(new Error('Erro ao carregar vídeo'));
                         };
                     });
                     
                     this.updateLoadingText('Inicializando SLAM Engine...');
+                    
+                    // Wait for video dimensions to be available
+                    let retries = 0;
+                    while ((this.video.videoWidth === 0 || this.video.videoHeight === 0) && retries < 20) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        retries++;
+                    }
+                    
+                    if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
+                        throw new Error('Dimensões do vídeo não disponíveis');
+                    }
+                    
+                    console.log('Inicializando SLAM com dimensões:', this.video.videoWidth, 'x', this.video.videoHeight);
                     
                     // Initialize SLAM
                     await this.slam.initialize(this.video);
@@ -863,6 +951,9 @@
                     this.setupRenderers();
                     
                     this.updateLoadingText('Iniciando sistema AR...');
+                    
+                    // Small delay to ensure everything is ready
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     
                     // Start main loop
                     this.isRunning = true;
@@ -876,10 +967,16 @@
                     
                     this.loading.style.display = 'none';
                     
+                    console.log('Sistema AR iniciado com sucesso!');
+                    
                 } catch (error) {
                     console.error('Erro ao iniciar AR:', error);
-                    this.showError('Erro ao acessar câmera ou inicializar sistema AR');
+                    this.showError(`Erro ao inicializar: ${error.message}`);
                     this.loading.style.display = 'none';
+                    
+                    // Reset button state
+                    this.startBtn.textContent = 'Iniciar AR';
+                    this.startBtn.onclick = () => this.startAR();
                 }
             }
             
@@ -966,12 +1063,18 @@
                         
                         // Render AR content
                         this.render(slamResult);
+                    } else {
+                        // Handle case where SLAM returns null
+                        this.updateStatus('INITIALIZING', 0, 'Aguardando', 0, 'N/A');
                     }
                     
                 } catch (error) {
                     console.error('Erro no loop principal:', error);
+                    // Continue running even if there's an error
+                    this.updateStatus('ERROR', 0, 'Erro', 0, 'N/A');
                 }
                 
+                // Continue loop
                 requestAnimationFrame(() => this.mainLoop());
             }
             
@@ -1209,10 +1312,13 @@
         let app;
         
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM carregado, inicializando aplicação...');
+            
             app = new ARApp();
             
             // Check for required APIs
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error('MediaDevices não suportado');
                 app.showError('Seu navegador não suporta acesso à câmera');
                 return;
             }
@@ -1221,9 +1327,18 @@
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
             if (!gl) {
+                console.error('WebGL não suportado');
                 app.showError('Seu navegador não suporta WebGL');
                 return;
             }
+            
+            // Hide loading screen after DOM is ready
+            setTimeout(() => {
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+            }, 1000);
             
             console.log('Custom SLAM AR System inicializado com sucesso');
         });
