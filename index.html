@@ -1,113 +1,1275 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WebAR SLAM Starter</title>
-  <style>
-    html, body { margin: 0; padding: 0; overflow: hidden; background: black; }
-    canvas, video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-    #log { position: absolute; top: 10px; left: 10px; color: lime; font-family: monospace; z-index: 10; background: rgba(0,0,0,0.5); padding: 5px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom SLAM AR Ground Plane</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #camera-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        #ar-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        #debug-canvas {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 200px;
+            height: 150px;
+            border: 2px solid #00ff00;
+            z-index: 3;
+            opacity: 0.8;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 4;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #00ff88, #0088ff);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.5);
+        }
+        
+        .control-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 4;
+            border: 1px solid #00ff88;
+        }
+        
+        .status-item {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        
+        .status-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            flex-direction: column;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top: 3px solid #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px;
+            text-align: center;
+        }
+        
+        .ground-plane-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            border: 2px solid #00ff88;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 3;
+        }
+        
+        .ground-plane-indicator.detected {
+            opacity: 1;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+        }
+    </style>
 </head>
 <body>
-  <div id="log">Initializing...</div>
-  <video id="videoElement" autoplay playsinline muted></video>
-  <canvas id="threeCanvas"></canvas>
+    <div id="loading">
+        <div class="loading-spinner"></div>
+        <div>Inicializando SLAM Engine...</div>
+    </div>
+    
+    <div id="camera-container">
+        <video id="camera-feed" autoplay muted playsinline></video>
+        <canvas id="ar-canvas"></canvas>
+        <canvas id="debug-canvas"></canvas>
+        <div id="ground-plane-indicator" class="ground-plane-indicator"></div>
+    </div>
+    
+    <div id="status">
+        <div class="status-item">
+            <span>SLAM:</span>
+            <span id="slam-status" class="status-value">Inicializando</span>
+        </div>
+        <div class="status-item">
+            <span>Features:</span>
+            <span id="features-count" class="status-value">0</span>
+        </div>
+        <div class="status-item">
+            <span>Ground Plane:</span>
+            <span id="ground-plane-status" class="status-value">Procurando</span>
+        </div>
+        <div class="status-item">
+            <span>FPS:</span>
+            <span id="fps-counter" class="status-value">0</span>
+        </div>
+        <div class="status-item">
+            <span>Pose:</span>
+            <span id="pose-info" class="status-value">N/A</span>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button id="start-btn" class="control-btn">Iniciar AR</button>
+        <button id="calibrate-btn" class="control-btn" disabled>Calibrar</button>
+        <button id="reset-btn" class="control-btn" disabled>Reset</button>
+        <button id="place-object-btn" class="control-btn" disabled>Colocar Objeto</button>
+    </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
-  <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-
-  <script>
-    const log = document.getElementById('log');
-    const video = document.getElementById('videoElement');
-    const canvas = document.getElementById('threeCanvas');
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
-    camera.position.z = 1;
-
-    const cube = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.2, 0.2),
-      new THREE.MeshNormalMaterial()
-    );
-    scene.add(cube);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-
-    function animate() {
-      requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
-      renderer.render(scene, camera);
-    }
-
-    async function startCameraAndSlam() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-        video.srcObject = stream;
-
-        await new Promise(resolve => {
-          video.onloadedmetadata = () => {
-            video.play();
-            log.innerText = 'Camera ready';
-            resolve();
-          };
+    <script>
+        class CustomSLAMEngine {
+            constructor() {
+                this.isInitialized = false;
+                this.features = [];
+                this.keyframes = [];
+                this.cameraMatrix = null;
+                this.groundPlane = null;
+                this.currentPose = { position: [0, 0, 0], rotation: [0, 0, 0] };
+                this.trackingState = 'NOT_TRACKING';
+                this.frameCount = 0;
+                this.lastTime = 0;
+                this.fps = 0;
+                
+                // Parâmetros do detector de features
+                this.cornerThreshold = 0.1;
+                this.maxFeatures = 500;
+                this.minFeatureDistance = 10;
+                
+                // Histórico para detecção de ground plane
+                this.motionHistory = [];
+                this.maxMotionHistory = 30;
+                
+                // Objetos AR
+                this.arObjects = [];
+            }
+            
+            async initialize(video) {
+                try {
+                    this.video = video;
+                    this.width = video.videoWidth;
+                    this.height = video.videoHeight;
+                    
+                    // Inicializar matriz da câmera (aproximada)
+                    const fx = this.width * 0.8;
+                    const fy = this.height * 0.8;
+                    const cx = this.width / 2;
+                    const cy = this.height / 2;
+                    
+                    this.cameraMatrix = {
+                        fx: fx, fy: fy,
+                        cx: cx, cy: cy
+                    };
+                    
+                    // Canvas para processamento
+                    this.processCanvas = document.createElement('canvas');
+                    this.processCanvas.width = this.width;
+                    this.processCanvas.height = this.height;
+                    this.processCtx = this.processCanvas.getContext('2d');
+                    
+                    // Buffers para optical flow
+                    this.prevGrayData = null;
+                    this.currentGrayData = null;
+                    
+                    this.isInitialized = true;
+                    console.log('SLAM Engine inicializado com sucesso');
+                    
+                } catch (error) {
+                    console.error('Erro ao inicializar SLAM Engine:', error);
+                    throw error;
+                }
+            }
+            
+            processFrame() {
+                if (!this.isInitialized || !this.video) return null;
+                
+                const startTime = performance.now();
+                
+                // Capturar frame atual
+                this.processCtx.drawImage(this.video, 0, 0, this.width, this.height);
+                const imageData = this.processCtx.getImageData(0, 0, this.width, this.height);
+                
+                // Converter para escala de cinza
+                this.currentGrayData = this.rgbToGrayscale(imageData);
+                
+                // Detectar features
+                const newFeatures = this.detectFeatures(this.currentGrayData);
+                
+                // Rastrear features existentes
+                if (this.prevGrayData && this.features.length > 0) {
+                    this.trackFeatures();
+                }
+                
+                // Atualizar features
+                this.updateFeatures(newFeatures);
+                
+                // Estimar pose
+                this.estimatePose();
+                
+                // Detectar ground plane
+                this.detectGroundPlane();
+                
+                // Atualizar histórico
+                this.updateMotionHistory();
+                
+                // Calcular FPS
+                this.updateFPS(startTime);
+                
+                // Salvar frame anterior
+                this.prevGrayData = this.currentGrayData;
+                this.frameCount++;
+                
+                return {
+                    features: this.features,
+                    pose: this.currentPose,
+                    groundPlane: this.groundPlane,
+                    trackingState: this.trackingState,
+                    fps: this.fps
+                };
+            }
+            
+            rgbToGrayscale(imageData) {
+                const data = imageData.data;
+                const grayData = new Uint8Array(this.width * this.height);
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                    grayData[i / 4] = gray;
+                }
+                
+                return grayData;
+            }
+            
+            detectFeatures(grayData) {
+                const features = [];
+                const stepSize = 8;
+                
+                for (let y = stepSize; y < this.height - stepSize; y += stepSize) {
+                    for (let x = stepSize; x < this.width - stepSize; x += stepSize) {
+                        const corner = this.computeCornerResponse(grayData, x, y);
+                        
+                        if (corner > this.cornerThreshold) {
+                            // Verificar se não está muito próximo de outras features
+                            let tooClose = false;
+                            for (const feature of features) {
+                                const dx = x - feature.x;
+                                const dy = y - feature.y;
+                                if (Math.sqrt(dx * dx + dy * dy) < this.minFeatureDistance) {
+                                    tooClose = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!tooClose) {
+                                features.push({
+                                    x: x,
+                                    y: y,
+                                    response: corner,
+                                    id: Math.random().toString(36).substr(2, 9),
+                                    age: 0
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // Ordenar por response e limitar número máximo
+                features.sort((a, b) => b.response - a.response);
+                return features.slice(0, this.maxFeatures);
+            }
+            
+            computeCornerResponse(grayData, x, y) {
+                const window = 3;
+                let Ixx = 0, Iyy = 0, Ixy = 0;
+                
+                for (let dy = -window; dy <= window; dy++) {
+                    for (let dx = -window; dx <= window; dx++) {
+                        const px = x + dx;
+                        const py = y + dy;
+                        
+                        if (px >= 1 && px < this.width - 1 && py >= 1 && py < this.height - 1) {
+                            const idx = py * this.width + px;
+                            
+                            // Gradientes
+                            const Ix = grayData[idx + 1] - grayData[idx - 1];
+                            const Iy = grayData[idx + this.width] - grayData[idx - this.width];
+                            
+                            Ixx += Ix * Ix;
+                            Iyy += Iy * Iy;
+                            Ixy += Ix * Iy;
+                        }
+                    }
+                }
+                
+                // Harris corner response
+                const det = Ixx * Iyy - Ixy * Ixy;
+                const trace = Ixx + Iyy;
+                const k = 0.04;
+                
+                return det - k * trace * trace;
+            }
+            
+            trackFeatures() {
+                const trackedFeatures = [];
+                
+                for (const feature of this.features) {
+                    const newPos = this.trackFeature(feature);
+                    if (newPos) {
+                        trackedFeatures.push({
+                            ...feature,
+                            x: newPos.x,
+                            y: newPos.y,
+                            age: feature.age + 1
+                        });
+                    }
+                }
+                
+                this.features = trackedFeatures;
+            }
+            
+            trackFeature(feature) {
+                const windowSize = 15;
+                const searchRange = 20;
+                
+                let bestMatch = null;
+                let bestScore = -1;
+                
+                for (let dy = -searchRange; dy <= searchRange; dy += 2) {
+                    for (let dx = -searchRange; dx <= searchRange; dx += 2) {
+                        const newX = feature.x + dx;
+                        const newY = feature.y + dy;
+                        
+                        if (newX >= windowSize && newX < this.width - windowSize &&
+                            newY >= windowSize && newY < this.height - windowSize) {
+                            
+                            const score = this.computeNCC(feature.x, feature.y, newX, newY, windowSize);
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestMatch = { x: newX, y: newY };
+                            }
+                        }
+                    }
+                }
+                
+                return bestScore > 0.7 ? bestMatch : null;
+            }
+            
+            computeNCC(x1, y1, x2, y2, windowSize) {
+                let sum1 = 0, sum2 = 0, sum11 = 0, sum22 = 0, sum12 = 0;
+                let count = 0;
+                
+                for (let dy = -windowSize; dy <= windowSize; dy++) {
+                    for (let dx = -windowSize; dx <= windowSize; dx++) {
+                        const idx1 = (y1 + dy) * this.width + (x1 + dx);
+                        const idx2 = (y2 + dy) * this.width + (x2 + dx);
+                        
+                        if (idx1 >= 0 && idx1 < this.prevGrayData.length &&
+                            idx2 >= 0 && idx2 < this.currentGrayData.length) {
+                            
+                            const val1 = this.prevGrayData[idx1];
+                            const val2 = this.currentGrayData[idx2];
+                            
+                            sum1 += val1;
+                            sum2 += val2;
+                            sum11 += val1 * val1;
+                            sum22 += val2 * val2;
+                            sum12 += val1 * val2;
+                            count++;
+                        }
+                    }
+                }
+                
+                if (count === 0) return 0;
+                
+                const mean1 = sum1 / count;
+                const mean2 = sum2 / count;
+                const var1 = sum11 / count - mean1 * mean1;
+                const var2 = sum22 / count - mean2 * mean2;
+                const covar = sum12 / count - mean1 * mean2;
+                
+                const denom = Math.sqrt(var1 * var2);
+                return denom > 0 ? covar / denom : 0;
+            }
+            
+            updateFeatures(newFeatures) {
+                // Remover features antigas
+                this.features = this.features.filter(f => f.age < 50);
+                
+                // Adicionar novas features se necessário
+                const numToAdd = Math.max(0, this.maxFeatures - this.features.length);
+                for (let i = 0; i < numToAdd && i < newFeatures.length; i++) {
+                    this.features.push(newFeatures[i]);
+                }
+            }
+            
+            estimatePose() {
+                if (this.features.length < 8) {
+                    this.trackingState = 'NOT_TRACKING';
+                    return;
+                }
+                
+                // Estimativa simples de pose baseada no movimento das features
+                let avgDx = 0, avgDy = 0;
+                let validFeatures = 0;
+                
+                for (const feature of this.features) {
+                    if (feature.age > 0) {
+                        avgDx += feature.x - (feature.prevX || feature.x);
+                        avgDy += feature.y - (feature.prevY || feature.y);
+                        validFeatures++;
+                    }
+                    feature.prevX = feature.x;
+                    feature.prevY = feature.y;
+                }
+                
+                if (validFeatures > 0) {
+                    avgDx /= validFeatures;
+                    avgDy /= validFeatures;
+                    
+                    // Atualizar pose (simplificado)
+                    this.currentPose.position[0] += avgDx * 0.001;
+                    this.currentPose.position[2] += avgDy * 0.001;
+                    
+                    this.trackingState = 'TRACKING';
+                } else {
+                    this.trackingState = 'NOT_TRACKING';
+                }
+            }
+            
+            detectGroundPlane() {
+                if (this.features.length < 20 || this.trackingState !== 'TRACKING') {
+                    return;
+                }
+                
+                // Algoritmo simplificado de detecção de ground plane
+                // Baseado na distribuição de features e movimento
+                const features = this.features.filter(f => f.age > 5);
+                
+                if (features.length < 10) return;
+                
+                // Calcular centroide das features
+                let cx = 0, cy = 0;
+                for (const feature of features) {
+                    cx += feature.x;
+                    cy += feature.y;
+                }
+                cx /= features.length;
+                cy /= features.length;
+                
+                // Verificar se há concentração de features na parte inferior
+                const bottomFeatures = features.filter(f => f.y > this.height * 0.6);
+                const bottomRatio = bottomFeatures.length / features.length;
+                
+                if (bottomRatio > 0.4 && this.motionHistory.length > 10) {
+                    // Verificar estabilidade do movimento
+                    const recentMotion = this.motionHistory.slice(-10);
+                    const avgMotion = recentMotion.reduce((sum, m) => sum + m, 0) / recentMotion.length;
+                    
+                    if (avgMotion < 5) { // Movimento estável
+                        this.groundPlane = {
+                            normal: [0, 1, 0],
+                            distance: 0,
+                            confidence: Math.min(bottomRatio * 2, 1.0),
+                            center: [cx, cy]
+                        };
+                    }
+                }
+            }
+            
+            updateMotionHistory() {
+                if (this.features.length > 0) {
+                    let totalMotion = 0;
+                    let validFeatures = 0;
+                    
+                    for (const feature of this.features) {
+                        if (feature.age > 0 && feature.prevX !== undefined) {
+                            const dx = feature.x - feature.prevX;
+                            const dy = feature.y - feature.prevY;
+                            totalMotion += Math.sqrt(dx * dx + dy * dy);
+                            validFeatures++;
+                        }
+                    }
+                    
+                    if (validFeatures > 0) {
+                        const avgMotion = totalMotion / validFeatures;
+                        this.motionHistory.push(avgMotion);
+                        
+                        if (this.motionHistory.length > this.maxMotionHistory) {
+                            this.motionHistory.shift();
+                        }
+                    }
+                }
+            }
+            
+            updateFPS(startTime) {
+                const currentTime = performance.now();
+                const deltaTime = currentTime - this.lastTime;
+                
+                if (deltaTime > 0) {
+                    this.fps = Math.round(1000 / deltaTime);
+                    this.lastTime = currentTime;
+                }
+            }
+            
+            addARObject(x, y, z, type = 'cube') {
+                const object = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    position: [x, y, z],
+                    type: type,
+                    color: `hsl(${Math.random() * 360}, 70%, 50%)`
+                };
+                
+                this.arObjects.push(object);
+                return object;
+            }
+            
+            reset() {
+                this.features = [];
+                this.keyframes = [];
+                this.groundPlane = null;
+                this.currentPose = { position: [0, 0, 0], rotation: [0, 0, 0] };
+                this.trackingState = 'NOT_TRACKING';
+                this.motionHistory = [];
+                this.arObjects = [];
+                this.frameCount = 0;
+            }
+        }
+        
+        class ARRenderer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.width = canvas.width;
+                this.height = canvas.height;
+            }
+            
+            resize(width, height) {
+                this.width = width;
+                this.height = height;
+                this.canvas.width = width;
+                this.canvas.height = height;
+            }
+            
+            clear() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+            }
+            
+            drawFeatures(features) {
+                this.ctx.fillStyle = '#00ff00';
+                this.ctx.strokeStyle = '#00ff00';
+                
+                for (const feature of features) {
+                    const size = feature.age > 10 ? 4 : 2;
+                    this.ctx.fillRect(feature.x - size/2, feature.y - size/2, size, size);
+                    
+                    // Desenhar ID das features antigas
+                    if (feature.age > 20) {
+                        this.ctx.font = '8px Arial';
+                        this.ctx.fillText(feature.age, feature.x + 5, feature.y - 5);
+                    }
+                }
+            }
+            
+            drawGroundPlane(groundPlane) {
+                if (!groundPlane) return;
+                
+                this.ctx.strokeStyle = '#ff00ff';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([5, 5]);
+                
+                // Desenhar grid do ground plane
+                const gridSize = 50;
+                const centerX = groundPlane.center[0];
+                const centerY = groundPlane.center[1];
+                
+                for (let i = -5; i <= 5; i++) {
+                    // Linhas horizontais
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX - 5 * gridSize, centerY + i * gridSize);
+                    this.ctx.lineTo(centerX + 5 * gridSize, centerY + i * gridSize);
+                    this.ctx.stroke();
+                    
+                    // Linhas verticais
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX + i * gridSize, centerY - 5 * gridSize);
+                    this.ctx.lineTo(centerX + i * gridSize, centerY + 5 * gridSize);
+                    this.ctx.stroke();
+                }
+                
+                this.ctx.setLineDash([]);
+            }
+            
+            drawARObjects(objects, groundPlane) {
+                if (!groundPlane || objects.length === 0) return;
+                
+                for (const obj of objects) {
+                    this.ctx.fillStyle = obj.color;
+                    this.ctx.strokeStyle = '#ffffff';
+                    this.ctx.lineWidth = 2;
+                    
+                    // Projetar posição 3D para 2D (simplificado)
+                    const screenX = groundPlane.center[0] + obj.position[0] * 100;
+                    const screenY = groundPlane.center[1] + obj.position[2] * 100;
+                    
+                    if (obj.type === 'cube') {
+                        const size = 20;
+                        this.ctx.fillRect(screenX - size/2, screenY - size/2, size, size);
+                        this.ctx.strokeRect(screenX - size/2, screenY - size/2, size, size);
+                    } else if (obj.type === 'sphere') {
+                        const radius = 15;
+                        this.ctx.beginPath();
+                        this.ctx.arc(screenX, screenY, radius, 0, 2 * Math.PI);
+                        this.ctx.fill();
+                        this.ctx.stroke();
+                    }
+                    
+                    // Desenhar sombra
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    this.ctx.fillRect(screenX - 10, screenY + 15, 20, 5);
+                }
+            }
+            
+            drawPoseInfo(pose) {
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = '12px Arial';
+                const text = `Pose: (${pose.position[0].toFixed(2)}, ${pose.position[1].toFixed(2)}, ${pose.position[2].toFixed(2)})`;
+                this.ctx.fillText(text, 10, this.height - 10);
+            }
+        }
+        
+        class DebugRenderer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.width = canvas.width;
+                this.height = canvas.height;
+            }
+            
+            clear() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+            }
+            
+            drawFeatureDistribution(features, canvasWidth, canvasHeight) {
+                this.clear();
+                
+                // Mapear features para o canvas de debug
+                const scaleX = this.width / canvasWidth;
+                const scaleY = this.height / canvasHeight;
+                
+                this.ctx.fillStyle = '#00ff00';
+                for (const feature of features) {
+                    const x = feature.x * scaleX;
+                    const y = feature.y * scaleY;
+                    this.ctx.fillRect(x - 1, y - 1, 2, 2);
+                }
+                
+                // Desenhar estatísticas
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = '10px Arial';
+                this.ctx.fillText(`Features: ${features.length}`, 5, 15);
+                
+                if (features.length > 0) {
+                    const avgAge = features.reduce((sum, f) => sum + f.age, 0) / features.length;
+                    this.ctx.fillText(`Avg Age: ${avgAge.toFixed(1)}`, 5, 30);
+                }
+            }
+        }
+        
+        class ARApp {
+            constructor() {
+                this.slam = new CustomSLAMEngine();
+                this.renderer = null;
+                this.debugRenderer = null;
+                this.isRunning = false;
+                this.lastPlaceTime = 0;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+            }
+            
+            initializeElements() {
+                this.video = document.getElementById('camera-feed');
+                this.arCanvas = document.getElementById('ar-canvas');
+                this.debugCanvas = document.getElementById('debug-canvas');
+                this.loading = document.getElementById('loading');
+                this.groundPlaneIndicator = document.getElementById('ground-plane-indicator');
+                
+                // Status elements
+                this.slamStatus = document.getElementById('slam-status');
+                this.featuresCount = document.getElementById('features-count');
+                this.groundPlaneStatus = document.getElementById('ground-plane-status');
+                this.fpsCounter = document.getElementById('fps-counter');
+                this.poseInfo = document.getElementById('pose-info');
+                
+                // Control buttons
+                this.startBtn = document.getElementById('start-btn');
+                this.calibrateBtn = document.getElementById('calibrate-btn');
+                this.resetBtn = document.getElementById('reset-btn');
+                this.placeObjectBtn = document.getElementById('place-object-btn');
+            }
+            
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.startAR());
+                this.calibrateBtn.addEventListener('click', () => this.calibrate());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                this.placeObjectBtn.addEventListener('click', () => this.placeObject());
+                
+                // Handle device orientation for mobile
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', (e) => this.handleDeviceOrientation(e));
+                }
+                
+                // Handle window resize
+                window.addEventListener('resize', () => this.handleResize());
+                
+                // Handle touch events for object placement
+                this.arCanvas.addEventListener('touchstart', (e) => this.handleTouch(e));
+                this.arCanvas.addEventListener('click', (e) => this.handleClick(e));
+            }
+            
+            async startAR() {
+                try {
+                    this.loading.style.display = 'flex';
+                    this.updateLoadingText('Solicitando acesso à câmera...');
+                    
+                    // Request camera access
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                    
+                    this.video.srcObject = stream;
+                    
+                    // Wait for video to load
+                    await new Promise((resolve) => {
+                        this.video.onloadedmetadata = () => {
+                            this.video.play();
+                            resolve();
+                        };
+                    });
+                    
+                    this.updateLoadingText('Inicializando SLAM Engine...');
+                    
+                    // Initialize SLAM
+                    await this.slam.initialize(this.video);
+                    
+                    this.updateLoadingText('Configurando renderizadores...');
+                    
+                    // Setup renderers
+                    this.setupRenderers();
+                    
+                    this.updateLoadingText('Iniciando sistema AR...');
+                    
+                    // Start main loop
+                    this.isRunning = true;
+                    this.mainLoop();
+                    
+                    // Update UI
+                    this.startBtn.textContent = 'Parar AR';
+                    this.startBtn.onclick = () => this.stopAR();
+                    this.calibrateBtn.disabled = false;
+                    this.resetBtn.disabled = false;
+                    
+                    this.loading.style.display = 'none';
+                    
+                } catch (error) {
+                    console.error('Erro ao iniciar AR:', error);
+                    this.showError('Erro ao acessar câmera ou inicializar sistema AR');
+                    this.loading.style.display = 'none';
+                }
+            }
+            
+            stopAR() {
+                this.isRunning = false;
+                
+                // Stop video stream
+                if (this.video.srcObject) {
+                    this.video.srcObject.getTracks().forEach(track => track.stop());
+                    this.video.srcObject = null;
+                }
+                
+                // Reset UI
+                this.startBtn.textContent = 'Iniciar AR';
+                this.startBtn.onclick = () => this.startAR();
+                this.calibrateBtn.disabled = true;
+                this.resetBtn.disabled = true;
+                this.placeObjectBtn.disabled = true;
+                
+                // Clear canvases
+                if (this.renderer) {
+                    this.renderer.clear();
+                }
+                if (this.debugRenderer) {
+                    this.debugRenderer.clear();
+                }
+                
+                this.updateStatus('Parado', 0, 'N/A', 0, 'N/A');
+            }
+            
+            setupRenderers() {
+                // Setup main AR renderer
+                this.arCanvas.width = this.video.videoWidth;
+                this.arCanvas.height = this.video.videoHeight;
+                this.renderer = new ARRenderer(this.arCanvas);
+                
+                // Setup debug renderer
+                this.debugRenderer = new DebugRenderer(this.debugCanvas);
+                
+                // Handle canvas resize
+                this.handleResize();
+            }
+            
+            handleResize() {
+                if (!this.video.videoWidth || !this.video.videoHeight) return;
+                
+                const videoAspect = this.video.videoWidth / this.video.videoHeight;
+                const windowAspect = window.innerWidth / window.innerHeight;
+                
+                if (videoAspect > windowAspect) {
+                    this.arCanvas.style.width = '100%';
+                    this.arCanvas.style.height = 'auto';
+                } else {
+                    this.arCanvas.style.width = 'auto';
+                    this.arCanvas.style.height = '100%';
+                }
+            }
+            
+            mainLoop() {
+                if (!this.isRunning) return;
+                
+                try {
+                    // Process SLAM frame
+                    const slamResult = this.slam.processFrame();
+                    
+                    if (slamResult) {
+                        // Update status
+                        this.updateStatus(
+                            slamResult.trackingState,
+                            slamResult.features.length,
+                            slamResult.groundPlane ? 'Detectado' : 'Procurando',
+                            slamResult.fps,
+                            this.formatPose(slamResult.pose)
+                        );
+                        
+                        // Update ground plane indicator
+                        if (slamResult.groundPlane) {
+                            this.groundPlaneIndicator.classList.add('detected');
+                            this.placeObjectBtn.disabled = false;
+                        } else {
+                            this.groundPlaneIndicator.classList.remove('detected');
+                            this.placeObjectBtn.disabled = true;
+                        }
+                        
+                        // Render AR content
+                        this.render(slamResult);
+                    }
+                    
+                } catch (error) {
+                    console.error('Erro no loop principal:', error);
+                }
+                
+                requestAnimationFrame(() => this.mainLoop());
+            }
+            
+            render(slamResult) {
+                // Clear canvases
+                this.renderer.clear();
+                
+                // Draw features
+                this.renderer.drawFeatures(slamResult.features);
+                
+                // Draw ground plane
+                if (slamResult.groundPlane) {
+                    this.renderer.drawGroundPlane(slamResult.groundPlane);
+                }
+                
+                // Draw AR objects
+                this.renderer.drawARObjects(this.slam.arObjects, slamResult.groundPlane);
+                
+                // Draw pose info
+                this.renderer.drawPoseInfo(slamResult.pose);
+                
+                // Update debug view
+                this.debugRenderer.drawFeatureDistribution(
+                    slamResult.features,
+                    this.video.videoWidth,
+                    this.video.videoHeight
+                );
+            }
+            
+            calibrate() {
+                if (!this.isRunning) return;
+                
+                this.updateLoadingText('Calibrando sistema...');
+                this.loading.style.display = 'flex';
+                
+                // Simulate calibration process
+                setTimeout(() => {
+                    // Reset tracking and improve parameters
+                    this.slam.cornerThreshold *= 0.8;
+                    this.slam.maxFeatures = Math.min(this.slam.maxFeatures + 50, 800);
+                    
+                    this.loading.style.display = 'none';
+                    this.showSuccess('Calibração concluída!');
+                }, 2000);
+            }
+            
+            reset() {
+                if (!this.isRunning) return;
+                
+                this.slam.reset();
+                this.renderer.clear();
+                this.debugRenderer.clear();
+                
+                this.updateStatus('Reinicializando', 0, 'Procurando', 0, 'N/A');
+                this.placeObjectBtn.disabled = true;
+                this.groundPlaneIndicator.classList.remove('detected');
+                
+                this.showSuccess('Sistema reiniciado!');
+            }
+            
+            placeObject() {
+                if (!this.slam.groundPlane) return;
+                
+                const currentTime = Date.now();
+                if (currentTime - this.lastPlaceTime < 1000) return; // Throttle placement
+                
+                this.lastPlaceTime = currentTime;
+                
+                // Generate random position on ground plane
+                const x = (Math.random() - 0.5) * 4;
+                const z = (Math.random() - 0.5) * 4;
+                const y = 0;
+                
+                const objectTypes = ['cube', 'sphere'];
+                const type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
+                
+                const object = this.slam.addARObject(x, y, z, type);
+                
+                // Visual feedback
+                this.showSuccess(`Objeto ${type} colocado!`);
+                
+                // Animate placement
+                this.animateObjectPlacement(object);
+            }
+            
+            animateObjectPlacement(object) {
+                const originalY = object.position[1];
+                const animationDuration = 500;
+                const startTime = Date.now();
+                
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / animationDuration, 1);
+                    
+                    // Bounce animation
+                    const bounce = Math.sin(progress * Math.PI);
+                    object.position[1] = originalY + bounce * 0.5;
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        object.position[1] = originalY;
+                    }
+                };
+                
+                animate();
+            }
+            
+            handleTouch(event) {
+                event.preventDefault();
+                
+                if (!this.slam.groundPlane) return;
+                
+                const touch = event.touches[0];
+                const rect = this.arCanvas.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+                
+                this.placeObjectAt(x, y);
+            }
+            
+            handleClick(event) {
+                if (!this.slam.groundPlane) return;
+                
+                const rect = this.arCanvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                this.placeObjectAt(x, y);
+            }
+            
+            placeObjectAt(screenX, screenY) {
+                if (!this.slam.groundPlane) return;
+                
+                // Convert screen coordinates to world coordinates (simplified)
+                const centerX = this.slam.groundPlane.center[0];
+                const centerY = this.slam.groundPlane.center[1];
+                
+                const worldX = (screenX - centerX) / 100;
+                const worldZ = (screenY - centerY) / 100;
+                
+                const object = this.slam.addARObject(worldX, 0, worldZ, 'cube');
+                this.animateObjectPlacement(object);
+                
+                this.showSuccess('Objeto colocado!');
+            }
+            
+            handleDeviceOrientation(event) {
+                if (!this.slam.isInitialized) return;
+                
+                // Use device orientation to improve tracking
+                const alpha = event.alpha * Math.PI / 180; // Z axis
+                const beta = event.beta * Math.PI / 180;   // X axis
+                const gamma = event.gamma * Math.PI / 180; // Y axis
+                
+                // Update SLAM with orientation data
+                this.slam.currentPose.rotation = [beta, alpha, gamma];
+            }
+            
+            updateStatus(slamState, featuresCount, groundPlaneState, fps, pose) {
+                this.slamStatus.textContent = slamState;
+                this.featuresCount.textContent = featuresCount;
+                this.groundPlaneStatus.textContent = groundPlaneState;
+                this.fpsCounter.textContent = fps;
+                this.poseInfo.textContent = pose;
+                
+                // Update status colors
+                this.slamStatus.style.color = slamState === 'TRACKING' ? '#00ff88' : '#ff8800';
+                this.groundPlaneStatus.style.color = groundPlaneState === 'Detectado' ? '#00ff88' : '#ff8800';
+            }
+            
+            formatPose(pose) {
+                return `(${pose.position[0].toFixed(2)}, ${pose.position[1].toFixed(2)}, ${pose.position[2].toFixed(2)})`;
+            }
+            
+            updateLoadingText(text) {
+                const loadingDiv = this.loading.querySelector('div:last-child');
+                if (loadingDiv) {
+                    loadingDiv.textContent = text;
+                }
+            }
+            
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error';
+                errorDiv.textContent = message;
+                document.body.appendChild(errorDiv);
+                
+                setTimeout(() => {
+                    if (errorDiv.parentNode) {
+                        errorDiv.parentNode.removeChild(errorDiv);
+                    }
+                }, 5000);
+            }
+            
+            showSuccess(message) {
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0, 255, 136, 0.9);
+                    color: white;
+                    padding: 15px 30px;
+                    border-radius: 25px;
+                    font-weight: bold;
+                    z-index: 1000;
+                    animation: fadeInOut 2s ease-in-out;
+                `;
+                successDiv.textContent = message;
+                document.body.appendChild(successDiv);
+                
+                setTimeout(() => {
+                    if (successDiv.parentNode) {
+                        successDiv.parentNode.removeChild(successDiv);
+                    }
+                }, 2000);
+            }
+        }
+        
+        // Add CSS animations for success message
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Initialize application
+        let app;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new ARApp();
+            
+            // Check for required APIs
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                app.showError('Seu navegador não suporta acesso à câmera');
+                return;
+            }
+            
+            // Check for WebGL support
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                app.showError('Seu navegador não suporta WebGL');
+                return;
+            }
+            
+            console.log('Custom SLAM AR System inicializado com sucesso');
         });
-
-        animate();
-        waitForOpenCV();
-      } catch (e) {
-        log.innerText = 'Camera error: ' + e.message;
-        console.error("Camera error:", e);
-      }
-    }
-
-    function waitForOpenCV() {
-      const checkReady = setInterval(() => {
-        if (cv && typeof cv.imread === 'function') {
-          clearInterval(checkReady);
-          log.innerText = 'OpenCV.js loaded';
-          startSLAM();
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && app && app.isRunning) {
+                app.stopAR();
+            }
+        });
+        
+        // Handle orientation changes
+        window.addEventListener('orientationchange', () => {
+            if (app && app.isRunning) {
+                setTimeout(() => {
+                    app.handleResize();
+                }, 100);
+            }
+        });
+        
+        // Performance monitoring
+        let lastFrameTime = 0;
+        let frameCount = 0;
+        
+        function monitorPerformance() {
+            const now = performance.now();
+            frameCount++;
+            
+            if (now - lastFrameTime >= 1000) {
+                const fps = Math.round(frameCount * 1000 / (now - lastFrameTime));
+                
+                // Log performance warning if FPS is too low
+                if (fps < 15 && app && app.isRunning) {
+                    console.warn(`Performance baixa detectada: ${fps} FPS`);
+                }
+                
+                lastFrameTime = now;
+                frameCount = 0;
+            }
+            
+            requestAnimationFrame(monitorPerformance);
         }
-      }, 100);
-    }
-
-    function startSLAM() {
-      const tempCanvas = document.createElement('canvas');
-      const ctx = tempCanvas.getContext('2d');
-
-      function process() {
-        if (video.readyState >= 2 && video.videoWidth > 0) {
-          tempCanvas.width = video.videoWidth;
-          tempCanvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0);
-
-          try {
-            const src = cv.imread(tempCanvas);
-            const gray = new cv.Mat();
-            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-
-            const orb = new cv.ORB();
-            const keypoints = new cv.KeyPointVector();
-            orb.detect(gray, keypoints);
-
-            log.innerText = 'Keypoints: ' + keypoints.size();
-
-            src.delete(); gray.delete(); orb.delete(); keypoints.delete();
-          } catch (err) {
-            log.innerText = 'OpenCV error: ' + err;
-            console.error(err);
-          }
-        } else {
-          log.innerText = 'Waiting for camera...';
-        }
-        requestAnimationFrame(process);
-      }
-
-      process();
-    }
-
-    window.addEventListener('load', startCameraAndSlam);
-  </script>
+        
+        // Start performance monitoring
+        requestAnimationFrame(monitorPerformance);
+        
+    </script>
 </body>
 </html>
