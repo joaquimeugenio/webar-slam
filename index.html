@@ -360,7 +360,7 @@
                 }
             }
             
-          processFrame() {
+            processFrame() {
                 if (!this.isInitialized || !this.video) {
                     console.warn('SLAM não inicializado ou vídeo não disponível');
                     return null;
@@ -382,27 +382,22 @@
                     // Converter para escala de cinza
                     this.currentGrayData = this.rgbToGrayscale(imageData);
                     
-                    // Detectar features - improved detection
+                    // Detectar features
                     const newFeatures = this.detectFeatures(this.currentGrayData);
                     
-                    // Rastrear features existentes - improved tracking
+                    // Rastrear features existentes
                     if (this.prevGrayData && this.features.length > 0) {
                         this.trackFeatures();
                     }
                     
-                    // Atualizar features - improved merging
+                    // Atualizar features
                     this.updateFeatures(newFeatures);
                     
-                    // Estimar pose - improved pose estimation
+                    // Estimar pose
                     this.estimatePose();
                     
-                    // Detectar ground plane - improved detection
+                    // Detectar ground plane
                     this.detectGroundPlane();
-                    
-                    // Automatically add a cube when ground plane is detected
-                    if (this.groundPlane && this.arObjects.length === 0) {
-                        this.addARObject(0, 0, 0, 'cube');
-                    }
                     
                     // Atualizar histórico
                     this.updateMotionHistory();
@@ -424,6 +419,7 @@
                     
                 } catch (error) {
                     console.error('Erro no processamento do frame:', error);
+                    // Return a basic result to keep the system running
                     return {
                         features: this.features || [],
                         pose: this.currentPose,
@@ -433,161 +429,6 @@
                     };
                 }
             }
-            
-            // Improved feature detection
-            detectFeatures(grayData) {
-                const features = [];
-                const stepSize = 8;
-                const minQuality = 0.01;
-                const blockSize = 3;
-                const k = 0.04;
-                
-                // Harris corner detection improved
-                for (let y = stepSize; y < this.height - stepSize; y += stepSize) {
-                    for (let x = stepSize; x < this.width - stepSize; x += stepSize) {
-                        let Ixx = 0, Iyy = 0, Ixy = 0;
-                        
-                        for (let dy = -blockSize; dy <= blockSize; dy++) {
-                            for (let dx = -blockSize; dx <= blockSize; dx++) {
-                                const px = x + dx;
-                                const py = y + dy;
-                                
-                                if (px >= 1 && px < this.width - 1 && py >= 1 && py < this.height - 1) {
-                                    const idx = py * this.width + px;
-                                    const Ix = grayData[idx + 1] - grayData[idx - 1];
-                                    const Iy = grayData[idx + this.width] - grayData[idx - this.width];
-                                    
-                                    Ixx += Ix * Ix;
-                                    Iyy += Iy * Iy;
-                                    Ixy += Ix * Iy;
-                                }
-                            }
-                        }
-                        
-                        const det = Ixx * Iyy - Ixy * Ixy;
-                        const trace = Ixx + Iyy;
-                        const cornerResponse = det - k * trace * trace;
-                        
-                        if (cornerResponse > this.cornerThreshold) {
-                            // Non-maximum suppression
-                            let isMax = true;
-                            for (let dy = -1; dy <= 1 && isMax; dy++) {
-                                for (let dx = -1; dx <= 1 && isMax; dx++) {
-                                    if (dx === 0 && dy === 0) continue;
-                                    const nx = x + dx;
-                                    const ny = y + dy;
-                                    if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
-                                        const nidx = ny * this.width + nx;
-                                        const nIx = grayData[nidx + 1] - grayData[nidx - 1];
-                                        const nIy = grayData[nidx + this.width] - grayData[nidx - this.width];
-                                        const nDet = nIx * nIx * nIy * nIy - (nIx * nIy) * (nIx * nIy);
-                                        const nTrace = nIx * nIx + nIy * nIy;
-                                        const nCorner = nDet - k * nTrace * nTrace;
-                                        
-                                        if (nCorner >= cornerResponse) {
-                                            isMax = false;
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            if (isMax) {
-                                // Check distance to other features
-                                let tooClose = false;
-                                for (const feature of features) {
-                                    const dx = x - feature.x;
-                                    const dy = y - feature.y;
-                                    if (Math.sqrt(dx * dx + dy * dy) < this.minFeatureDistance) {
-                                        tooClose = true;
-                                        break;
-                                    }
-                                }
-                                
-                                if (!tooClose) {
-                                    features.push({
-                                        x: x,
-                                        y: y,
-                                        response: cornerResponse,
-                                        id: Math.random().toString(36).substr(2, 9),
-                                        age: 0
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Sort by response and limit number
-                features.sort((a, b) => b.response - a.response);
-                return features.slice(0, this.maxFeatures);
-            }
-            
-            // Improved ground plane detection
-            detectGroundPlane() {
-                if (this.features.length < 20 || this.trackingState !== 'TRACKING') {
-                    this.groundPlane = null;
-                    return;
-                }
-                
-                // Filter stable features
-                const stableFeatures = this.features.filter(f => f.age > 5);
-                
-                if (stableFeatures.length < 10) {
-                    this.groundPlane = null;
-                    return;
-                }
-                
-                // Calculate feature distribution
-                let minX = Infinity, maxX = -Infinity;
-                let minY = Infinity, maxY = -Infinity;
-                let sumX = 0, sumY = 0;
-                
-                for (const feature of stableFeatures) {
-                    sumX += feature.x;
-                    sumY += feature.y;
-                    minX = Math.min(minX, feature.x);
-                    maxX = Math.max(maxX, feature.x);
-                    minY = Math.min(minY, feature.y);
-                    maxY = Math.max(maxY, feature.y);
-                }
-                
-                const centerX = sumX / stableFeatures.length;
-                const centerY = sumY / stableFeatures.length;
-                const width = maxX - minX;
-                const height = maxY - minY;
-                
-                // Check if features are concentrated in lower part of screen
-                const bottomFeatures = stableFeatures.filter(f => f.y > this.height * 0.6);
-                const bottomRatio = bottomFeatures.length / stableFeatures.length;
-                
-                // Check feature spread (we want features spread horizontally)
-                const horizontalSpread = width / this.width;
-                const verticalSpread = height / this.height;
-                
-                // Check motion stability
-                const recentMotion = this.motionHistory.length > 0 ? 
-                    this.motionHistory.reduce((sum, m) => sum + m, 0) / this.motionHistory.length : 0;
-                
-                // Ground plane detection conditions
-                if (bottomRatio > 0.3 && 
-                    horizontalSpread > 0.4 && 
-                    verticalSpread < 0.6 && 
-                    recentMotion < 5) {
-                    
-                    this.groundPlane = {
-                        normal: [0, 1, 0],
-                        distance: 0,
-                        confidence: Math.min(bottomRatio * 2, 1.0),
-                        center: [centerX, centerY],
-                        scale: width * 0.01 // Add scale based on feature spread
-                    };
-                } else {
-                    this.groundPlane = null;
-                }
-            }
-            
-            // Rest of the class methods remain the same
-        }
             
             rgbToGrayscale(imageData) {
                 const data = imageData.data;
@@ -896,7 +737,7 @@
             }
         }
         
-      class ARRenderer {
+        class ARRenderer {
             constructor(canvas) {
                 this.canvas = canvas;
                 this.ctx = canvas.getContext('2d');
@@ -904,62 +745,53 @@
                 this.height = canvas.height;
             }
             
-            // Improved feature drawing
+            resize(width, height) {
+                this.width = width;
+                this.height = height;
+                this.canvas.width = width;
+                this.canvas.height = height;
+            }
+            
+            clear() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+            }
+            
             drawFeatures(features) {
-                if (!features || features.length === 0) return;
+                this.ctx.fillStyle = '#00ff00';
+                this.ctx.strokeStyle = '#00ff00';
                 
-                // Draw feature points with size based on age
                 for (const feature of features) {
-                    const ageFactor = Math.min(feature.age / 30, 1);
-                    const size = 2 + ageFactor * 4; // Size grows with age up to 6px
+                    const size = feature.age > 10 ? 4 : 2;
+                    this.ctx.fillRect(feature.x - size/2, feature.y - size/2, size, size);
                     
-                    // Color based on age (green to yellow)
-                    const hue = 120 - (ageFactor * 60); // 120° is green, 60° is yellow
-                    this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-                    
-                    // Draw feature point
-                    this.ctx.beginPath();
-                    this.ctx.arc(feature.x, feature.y, size/2, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    
-                    // Draw small white center for visibility
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.beginPath();
-                    this.ctx.arc(feature.x, feature.y, size/4, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    
-                    // Draw feature ID for older features
-                    if (feature.age > 30) {
-                        this.ctx.font = '10px Arial';
-                        this.ctx.fillStyle = 'white';
-                        this.ctx.fillText(feature.id.substr(0, 3), feature.x + size, feature.y - size);
+                    // Desenhar ID das features antigas
+                    if (feature.age > 20) {
+                        this.ctx.font = '8px Arial';
+                        this.ctx.fillText(feature.age, feature.x + 5, feature.y - 5);
                     }
                 }
             }
             
-            // Improved ground plane visualization
             drawGroundPlane(groundPlane) {
                 if (!groundPlane) return;
                 
-                const centerX = groundPlane.center[0];
-                const centerY = groundPlane.center[1];
-                const gridSize = groundPlane.scale || 50;
-                const gridOpacity = 0.6 * groundPlane.confidence;
-                
-                // Draw grid
-                this.ctx.strokeStyle = `rgba(255, 0, 255, ${gridOpacity})`;
-                this.ctx.lineWidth = 1;
+                this.ctx.strokeStyle = '#ff00ff';
+                this.ctx.lineWidth = 2;
                 this.ctx.setLineDash([5, 5]);
                 
-                // Draw grid lines
+                // Desenhar grid do ground plane
+                const gridSize = 50;
+                const centerX = groundPlane.center[0];
+                const centerY = groundPlane.center[1];
+                
                 for (let i = -5; i <= 5; i++) {
-                    // Horizontal lines
+                    // Linhas horizontais
                     this.ctx.beginPath();
                     this.ctx.moveTo(centerX - 5 * gridSize, centerY + i * gridSize);
                     this.ctx.lineTo(centerX + 5 * gridSize, centerY + i * gridSize);
                     this.ctx.stroke();
                     
-                    // Vertical lines
+                    // Linhas verticais
                     this.ctx.beginPath();
                     this.ctx.moveTo(centerX + i * gridSize, centerY - 5 * gridSize);
                     this.ctx.lineTo(centerX + i * gridSize, centerY + 5 * gridSize);
@@ -967,101 +799,45 @@
                 }
                 
                 this.ctx.setLineDash([]);
-                
-                // Draw center point
-                this.ctx.fillStyle = `rgba(255, 0, 255, ${gridOpacity})`;
-                this.ctx.beginPath();
-                this.ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
-                this.ctx.fill();
             }
             
-            // Improved AR object rendering
             drawARObjects(objects, groundPlane) {
-                if (!groundPlane || !objects || objects.length === 0) return;
-                
-                const centerX = groundPlane.center[0];
-                const centerY = groundPlane.center[1];
-                const gridSize = groundPlane.scale || 50;
+                if (!groundPlane || objects.length === 0) return;
                 
                 for (const obj of objects) {
-                    // Convert 3D position to screen coordinates
-                    const screenX = centerX + obj.position[0] * gridSize;
-                    const screenY = centerY + obj.position[2] * gridSize;
-                    const size = gridSize * 0.2 * (1 + obj.position[1] * 0.5); // Scale with Y position
+                    this.ctx.fillStyle = obj.color;
+                    this.ctx.strokeStyle = '#ffffff';
+                    this.ctx.lineWidth = 2;
                     
-                    // Draw object based on type
+                    // Projetar posição 3D para 2D (simplificado)
+                    const screenX = groundPlane.center[0] + obj.position[0] * 100;
+                    const screenY = groundPlane.center[1] + obj.position[2] * 100;
+                    
                     if (obj.type === 'cube') {
-                        // Draw cube with perspective
-                        this.ctx.fillStyle = obj.color;
-                        this.ctx.strokeStyle = 'white';
-                        this.ctx.lineWidth = 2;
-                        
-                        // Front face
-                        this.ctx.beginPath();
-                        this.ctx.rect(screenX - size/2, screenY - size/2, size, size);
-                        this.ctx.fill();
-                        this.ctx.stroke();
-                        
-                        // Top face (perspective)
-                        const topOffset = size * 0.3;
-                        this.ctx.fillStyle = this.darkenColor(obj.color, 20);
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(screenX - size/2, screenY - size/2);
-                        this.ctx.lineTo(screenX + size/2, screenY - size/2);
-                        this.ctx.lineTo(screenX + size/2 - topOffset, screenY - size/2 - topOffset);
-                        this.ctx.lineTo(screenX - size/2 - topOffset, screenY - size/2 - topOffset);
-                        this.ctx.closePath();
-                        this.ctx.fill();
-                        this.ctx.stroke();
-                        
-                        // Side face (perspective)
-                        this.ctx.fillStyle = this.darkenColor(obj.color, 40);
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(screenX + size/2, screenY - size/2);
-                        this.ctx.lineTo(screenX + size/2, screenY + size/2);
-                        this.ctx.lineTo(screenX + size/2 - topOffset, screenY + size/2 - topOffset);
-                        this.ctx.lineTo(screenX + size/2 - topOffset, screenY - size/2 - topOffset);
-                        this.ctx.closePath();
-                        this.ctx.fill();
-                        this.ctx.stroke();
-                        
+                        const size = 20;
+                        this.ctx.fillRect(screenX - size/2, screenY - size/2, size, size);
+                        this.ctx.strokeRect(screenX - size/2, screenY - size/2, size, size);
                     } else if (obj.type === 'sphere') {
-                        // Draw sphere with shading
-                        const gradient = this.ctx.createRadialGradient(
-                            screenX, screenY, 0,
-                            screenX, screenY, size
-                        );
-                        gradient.addColorStop(0, obj.color);
-                        gradient.addColorStop(1, this.darkenColor(obj.color, 30));
-                        
-                        this.ctx.fillStyle = gradient;
+                        const radius = 15;
                         this.ctx.beginPath();
-                        this.ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+                        this.ctx.arc(screenX, screenY, radius, 0, 2 * Math.PI);
                         this.ctx.fill();
-                        
-                        this.ctx.strokeStyle = 'white';
-                        this.ctx.lineWidth = 1;
                         this.ctx.stroke();
                     }
                     
-                    // Draw shadow
+                    // Desenhar sombra
                     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                    this.ctx.beginPath();
-                    this.ctx.ellipse(
-                        screenX, centerY + gridSize * 0.1,
-                        size * 0.8, size * 0.2,
-                        0, 0, Math.PI * 2
-                    );
-                    this.ctx.fill();
+                    this.ctx.fillRect(screenX - 10, screenY + 15, 20, 5);
                 }
             }
             
-            // Helper to darken colors
-            darkenColor(color, percent) {
-                // Convert HSL to RGB if needed, darken, then return
-                // Simplified version for demo
-                return color.replace(/hsl\((\d+),/, `hsl($1,`) // Just return original for now
+            drawPoseInfo(pose) {
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = '12px Arial';
+                const text = `Pose: (${pose.position[0].toFixed(2)}, ${pose.position[1].toFixed(2)}, ${pose.position[2].toFixed(2)})`;
+                this.ctx.fillText(text, 10, this.height - 10);
             }
+        }
         
         class DebugRenderer {
             constructor(canvas) {
