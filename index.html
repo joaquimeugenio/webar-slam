@@ -16,7 +16,7 @@
   <canvas id="threeCanvas"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
-  <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady()"></script>
+  <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 
   <script>
     const log = document.getElementById('log');
@@ -41,28 +41,38 @@
       renderer.render(scene, camera);
     }
 
-    async function startCamera() {
+    async function startCameraAndSlam() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
         video.srcObject = stream;
-        video.onloadedmetadata = () => {
-          video.play();
-          log.innerText = 'Camera ready';
-        };
+
+        await new Promise(resolve => {
+          video.onloadedmetadata = () => {
+            video.play();
+            log.innerText = 'Camera ready';
+            resolve();
+          };
+        });
+
+        animate();
+        waitForOpenCV();
       } catch (e) {
         log.innerText = 'Camera error: ' + e.message;
         console.error("Camera error:", e);
       }
     }
 
-    function onOpenCvReady() {
-      if (!cv || typeof cv.imread !== 'function') {
-        log.innerText = 'OpenCV not ready';
-        console.error('OpenCV not ready');
-        return;
-      }
-      log.innerText = 'OpenCV.js loaded';
+    function waitForOpenCV() {
+      const checkReady = setInterval(() => {
+        if (cv && typeof cv.imread === 'function') {
+          clearInterval(checkReady);
+          log.innerText = 'OpenCV.js loaded';
+          startSLAM();
+        }
+      }, 100);
+    }
 
+    function startSLAM() {
       const tempCanvas = document.createElement('canvas');
       const ctx = tempCanvas.getContext('2d');
 
@@ -97,9 +107,7 @@
       process();
     }
 
-    window.addEventListener('load', () => {
-      startCamera().then(animate);
-    });
+    window.addEventListener('load', startCameraAndSlam);
   </script>
 </body>
 </html>
