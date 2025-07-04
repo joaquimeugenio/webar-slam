@@ -173,9 +173,58 @@
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.2); }
         }
+
+        #permission-prompt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #permission-prompt h2 {
+            margin-bottom: 20px;
+            color: #00ff88;
+        }
+
+        #permission-prompt p {
+            margin-bottom: 30px;
+            max-width: 500px;
+        }
+
+        #permission-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00ff88, #0088ff);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        #permission-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
     </style>
 </head>
 <body>
+    <div id="permission-prompt">
+        <h2>Custom SLAM AR Experience</h2>
+        <p>Para usar esta experiência de Realidade Aumentada, precisamos do acesso à sua câmera. Por favor, permita o uso da câmera quando solicitado.</p>
+        <button id="permission-btn">Permitir Acesso à Câmera</button>
+    </div>
+
     <div id="loading">
         <div class="loading-spinner"></div>
         <div>Inicializando SLAM Engine...</div>
@@ -846,6 +895,8 @@
                 this.debugCanvas = document.getElementById('debug-canvas');
                 this.loading = document.getElementById('loading');
                 this.groundPlaneIndicator = document.getElementById('ground-plane-indicator');
+                this.permissionPrompt = document.getElementById('permission-prompt');
+                this.permissionBtn = document.getElementById('permission-btn');
                 
                 // Status elements
                 this.slamStatus = document.getElementById('slam-status');
@@ -859,6 +910,9 @@
                 this.calibrateBtn = document.getElementById('calibrate-btn');
                 this.resetBtn = document.getElementById('reset-btn');
                 this.placeObjectBtn = document.getElementById('place-object-btn');
+                
+                // Initially hide loading screen
+                this.loading.style.display = 'none';
             }
             
             setupEventListeners() {
@@ -866,6 +920,7 @@
                 this.calibrateBtn.addEventListener('click', () => this.calibrate());
                 this.resetBtn.addEventListener('click', () => this.reset());
                 this.placeObjectBtn.addEventListener('click', () => this.placeObject());
+                this.permissionBtn.addEventListener('click', () => this.requestCameraAccess());
                 
                 // Handle device orientation for mobile
                 if (window.DeviceOrientationEvent) {
@@ -880,8 +935,9 @@
                 this.arCanvas.addEventListener('click', (e) => this.handleClick(e));
             }
             
-            async startAR() {
+            async requestCameraAccess() {
                 try {
+                    this.permissionPrompt.style.display = 'none';
                     this.loading.style.display = 'flex';
                     this.updateLoadingText('Solicitando acesso à câmera...');
                     
@@ -927,6 +983,26 @@
                         };
                     });
                     
+                    // Enable start button
+                    this.startBtn.disabled = false;
+                    this.loading.style.display = 'none';
+                    
+                } catch (error) {
+                    console.error('Erro ao acessar câmera:', error);
+                    this.showError(`Erro ao acessar câmera: ${error.message}`);
+                    this.permissionPrompt.style.display = 'flex';
+                    this.loading.style.display = 'none';
+                }
+            }
+            
+            async startAR() {
+                try {
+                    if (!this.video.srcObject) {
+                        await this.requestCameraAccess();
+                        return;
+                    }
+                    
+                    this.loading.style.display = 'flex';
                     this.updateLoadingText('Inicializando SLAM Engine...');
                     
                     // Wait for video dimensions to be available
@@ -1320,6 +1396,7 @@
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.error('MediaDevices não suportado');
                 app.showError('Seu navegador não suporta acesso à câmera');
+                document.getElementById('permission-prompt').style.display = 'none';
                 return;
             }
             
@@ -1329,16 +1406,12 @@
             if (!gl) {
                 console.error('WebGL não suportado');
                 app.showError('Seu navegador não suporta WebGL');
+                document.getElementById('permission-prompt').style.display = 'none';
                 return;
             }
             
-            // Hide loading screen after DOM is ready
-            setTimeout(() => {
-                const loading = document.getElementById('loading');
-                if (loading) {
-                    loading.style.display = 'none';
-                }
-            }, 1000);
+            // Initially disable start button until camera is accessed
+            document.getElementById('start-btn').disabled = true;
             
             console.log('Custom SLAM AR System inicializado com sucesso');
         });
