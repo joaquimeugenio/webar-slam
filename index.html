@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WebAR SLAM Starter</title>
+  <title>WebAR SLAM Test</title>
   <style>
     html, body { margin: 0; padding: 0; overflow: hidden; background: black; }
     canvas, video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    #log { position: absolute; top: 10px; left: 10px; color: lime; font-family: monospace; z-index: 10; background: rgba(0,0,0,0.5); padding: 5px; }
   </style>
 </head>
 <body>
+  <div id="log">Initializing...</div>
   <video id="videoElement" autoplay playsinline muted></video>
   <canvas id="threeCanvas"></canvas>
 
@@ -17,78 +19,16 @@
   <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady()"></script>
 
   <script>
-    let video = document.getElementById('videoElement');
-    let canvas = document.getElementById('threeCanvas');
-    let renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
-    let scene = new THREE.Scene();
-    let camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
+    const log = document.getElementById('log');
+    const video = document.getElementById('videoElement');
+    const canvas = document.getElementById('threeCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
     camera.position.z = 1;
 
     const cube = new THREE.Mesh(
       new THREE.BoxGeometry(0.2, 0.2, 0.2),
       new THREE.MeshNormalMaterial()
     );
-    scene.add(cube);
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
-
-    function animate() {
-      requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
-      renderer.render(scene, camera);
-    }
-
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        video.srcObject = stream;
-        await video.play();
-      } catch (e) {
-        console.error("Camera error:", e);
-      }
-    }
-
-    function onOpenCvReady() {
-      if (!cv || typeof cv.imread !== 'function') {
-        console.error('OpenCV not ready');
-        return;
-      }
-
-      const tempCanvas = document.createElement('canvas');
-      const ctx = tempCanvas.getContext('2d');
-
-      function process() {
-        if (video.readyState >= 2) {
-          tempCanvas.width = video.videoWidth;
-          tempCanvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0);
-
-          let src = cv.imread(tempCanvas);
-          let gray = new cv.Mat();
-          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-
-          let orb = new cv.ORB();
-          let keypoints = new cv.KeyPointVector();
-          orb.detect(gray, keypoints);
-
-          // For debugging in console:
-          console.log('Keypoints:', keypoints.size());
-
-          src.delete();
-          gray.delete();
-          orb.delete();
-          keypoints.delete();
-        }
-        requestAnimationFrame(process);
-      }
-
-      process();
-    }
-
-    window.addEventListener('load', () => {
-      startCamera().then(animate);
-    });
-  </script>
-</body>
-</html>
+    scene.add(cub
