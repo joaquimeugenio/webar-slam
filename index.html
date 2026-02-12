@@ -7,16 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;
-  --text:#e8e8f0;--dim:#6b6b80;--accent:#00e5a0;--accent2:#00b8ff;
-  --warn:#ff6b35;--danger:#ff3366;
-  --glow:0 0 20px rgba(0,229,160,0.3);
-  --radius:12px;
-}
+:root{--bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;--text:#e8e8f0;--dim:#6b6b80;--accent:#00e5a0;--accent2:#00b8ff;--warn:#ff6b35;--danger:#ff3366;--glow:0 0 20px rgba(0,229,160,0.3);--radius:12px}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 #app{width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center}
-
 #startScreen{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);gap:24px;transition:opacity 0.6s,transform 0.6s}
 #startScreen.hidden{opacity:0;pointer-events:none;transform:scale(1.05)}
 .logo{font-size:clamp(2rem,6vw,3.5rem);font-weight:800;letter-spacing:-2px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -24,105 +17,41 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .features{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:12px 0}
 .feat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:0.78rem;color:var(--dim);display:flex;align-items:center;gap:8px}
 .feat .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
-
-#startBtn{
-  margin-top:12px;padding:16px 48px;border:none;border-radius:60px;
-  background:linear-gradient(135deg,var(--accent),#00c8e0);color:#0a0a0f;
-  font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;
-  cursor:pointer;letter-spacing:0.5px;transition:all 0.3s;
-  box-shadow:var(--glow)
-}
+#startBtn{margin-top:12px;padding:16px 48px;border:none;border-radius:60px;background:linear-gradient(135deg,var(--accent),#00c8e0);color:#0a0a0f;font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:all 0.3s;box-shadow:var(--glow)}
 #startBtn:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,229,160,0.5)}
 #startBtn:active{transform:scale(0.97)}
-
 #videoEl{display:none}
 #arCanvas{position:absolute;inset:0;width:100%;height:100%}
-
-.hud{position:absolute;z-index:10;pointer-events:none}
-.hud>*{pointer-events:auto}
-
+.hud{position:absolute;z-index:10;pointer-events:none}.hud>*{pointer-events:auto}
 #topBar{top:0;left:0;right:0;padding:12px;display:flex;justify-content:space-between;align-items:flex-start}
-#statusPill{
-  display:flex;align-items:center;gap:8px;
-  background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);
-  border:1px solid var(--border);border-radius:60px;padding:7px 14px;
-  font-family:'JetBrains Mono',monospace;font-size:0.72rem;
-  transition:border-color 0.4s,box-shadow 0.4s
-}
+#statusPill{display:flex;align-items:center;gap:8px;background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:60px;padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:0.72rem;transition:border-color 0.4s,box-shadow 0.4s}
 #statusPill.detected{border-color:var(--accent);box-shadow:var(--glow)}
 #statusDot{width:7px;height:7px;border-radius:50%;background:var(--warn);transition:background 0.4s,box-shadow 0.4s}
 #statusPill.detected #statusDot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
 #statusText{color:var(--dim);transition:color 0.3s}
 #statusPill.detected #statusText{color:var(--accent)}
-
-#fpsBadge{
-  background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);
-  border:1px solid var(--border);border-radius:var(--radius);
-  padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim)
-}
-
+#fpsBadge{background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim)}
 #bottomBar{bottom:0;left:0;right:0;padding:12px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-.ctrl-btn{
-  padding:9px 18px;border:1px solid var(--border);border-radius:60px;
-  background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);
-  color:var(--text);font-family:'Outfit',sans-serif;font-size:0.78rem;font-weight:500;
-  cursor:pointer;transition:all 0.25s;white-space:nowrap;-webkit-tap-highlight-color:transparent
-}
+.ctrl-btn{padding:9px 18px;border:1px solid var(--border);border-radius:60px;background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer;transition:all 0.25s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .ctrl-btn:active{transform:scale(0.95)}
 .ctrl-btn.active{border-color:var(--accent);color:var(--accent)}
 .ctrl-btn.danger{border-color:var(--danger);color:var(--danger)}
-
-#crosshair{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:32px;height:32px;z-index:5;opacity:0.4;transition:opacity 0.3s
-}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;z-index:5;opacity:0.4;transition:opacity 0.3s}
 #crosshair.active{opacity:1}
 #crosshair::before,#crosshair::after{content:'';position:absolute;background:var(--accent);border-radius:1px}
 #crosshair::before{width:1.5px;height:100%;left:50%;transform:translateX(-50%)}
 #crosshair::after{height:1.5px;width:100%;top:50%;transform:translateY(-50%)}
-
-#planeIndicator{
-  position:absolute;bottom:90px;left:50%;transform:translateX(-50%);
-  background:rgba(10,10,15,0.8);backdrop-filter:blur(12px);
-  border:1px solid var(--accent);border-radius:var(--radius);
-  padding:9px 18px;font-size:0.78rem;color:var(--accent);
-  opacity:0;transition:all 0.5s;pointer-events:none;z-index:10;
-  box-shadow:var(--glow)
-}
+#planeIndicator{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(10,10,15,0.8);backdrop-filter:blur(12px);border:1px solid var(--accent);border-radius:var(--radius);padding:9px 18px;font-size:0.78rem;color:var(--accent);opacity:0;transition:all 0.5s;pointer-events:none;z-index:10;box-shadow:var(--glow)}
 #planeIndicator.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
-
-#debugPanel{
-  position:absolute;top:52px;left:12px;z-index:15;
-  background:rgba(10,10,15,0.88);backdrop-filter:blur(12px);
-  border:1px solid var(--border);border-radius:var(--radius);
-  padding:12px;font-family:'JetBrains Mono',monospace;font-size:0.62rem;
-  color:var(--dim);line-height:1.8;min-width:180px;display:none
-}
+#debugPanel{position:absolute;top:52px;left:12px;z-index:15;background:rgba(10,10,15,0.88);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--dim);line-height:1.8;min-width:190px;display:none}
 #debugPanel.show{display:block}
 #debugPanel .val{color:var(--accent)}
-
-#objectCount{
-  position:absolute;top:52px;right:12px;z-index:10;
-  background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);
-  border:1px solid var(--border);border-radius:var(--radius);
-  padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim)
-}
-
-#instructions{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  background:rgba(10,10,15,0.85);backdrop-filter:blur(16px);
-  border:1px solid var(--border);border-radius:16px;
-  padding:18px 24px;text-align:center;z-index:20;
-  transition:all 0.6s;max-width:300px
-}
+#objectCount{position:absolute;top:52px;right:12px;z-index:10;background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim)}
+#instructions{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,15,0.85);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:18px 24px;text-align:center;z-index:20;transition:all 0.6s;max-width:300px}
 #instructions.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(0.9)}
 #instructions h3{font-size:0.9rem;font-weight:600;margin-bottom:6px}
 #instructions p{font-size:0.78rem;color:var(--dim);line-height:1.5}
-
-@media(max-width:480px){
-  .ctrl-btn{padding:8px 13px;font-size:0.7rem}
-  #topBar,#bottomBar{padding:10px}
-}
+@media(max-width:480px){.ctrl-btn{padding:8px 13px;font-size:0.7rem}#topBar,#bottomBar{padding:10px}}
 </style>
 </head>
 <body>
@@ -138,892 +67,379 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     </div>
     <button id="startBtn">Iniciar AR</button>
   </div>
-
   <video id="videoEl" playsinline autoplay muted></video>
   <canvas id="arCanvas"></canvas>
   <div id="crosshair"></div>
-
   <div class="hud" id="topBar">
-    <div id="statusPill">
-      <div id="statusDot"></div>
-      <span id="statusText">Inicializando...</span>
-    </div>
+    <div id="statusPill"><div id="statusDot"></div><span id="statusText">Inicializando...</span></div>
     <div id="fpsBadge">-- FPS</div>
   </div>
-
   <div id="objectCount" style="display:none">Cubos: <span id="objCountVal">0</span></div>
-
   <div id="debugPanel">
     Features: <span class="val" id="dbgFeatures">0</span><br>
     Tracked: <span class="val" id="dbgTracked">0</span><br>
-    Pose Δ: <span class="val" id="dbgPose">0,0,0</span><br>
+    Pose: <span class="val" id="dbgPose">0,0,0</span><br>
     Plane: <span class="val" id="dbgPlane">--</span><br>
-    Map pts: <span class="val" id="dbgMap">0</span><br>
+    Map: <span class="val" id="dbgMap">0</span><br>
     Gyro: <span class="val" id="dbgGyro">--</span><br>
-    Budget: <span class="val" id="dbgBudget">--</span>
+    Ms: <span class="val" id="dbgBudget">--</span>
   </div>
-
   <div id="planeIndicator">✦ Ground Plane Detectado</div>
-
-  <div id="instructions" class="hidden">
-    <h3>Mova a câmera lentamente</h3>
-    <p>Aponte para uma superfície plana e mova devagar para detectar o plano.</p>
-  </div>
-
+  <div id="instructions" class="hidden"><h3>Mova a câmera lentamente</h3><p>Aponte para uma superfície plana e mova devagar para detectar o plano.</p></div>
   <div class="hud" id="bottomBar">
     <button class="ctrl-btn" id="btnDebug">Debug</button>
     <button class="ctrl-btn" id="btnCalibrate">Calibrar</button>
     <button class="ctrl-btn danger" id="btnReset">Reset</button>
   </div>
 </div>
-
 <script>
-// =====================================================
-//  SLAM AR — Performance-Optimized for Mobile
-// =====================================================
+/*
+ * SLAM AR — Fixed Detection Pipeline
+ *
+ * BUGS FIXED:
+ * 1. Optical flow tracked features against SAME frame (detected & tracked in one call).
+ *    FIX: Detect in frame N, STORE them, track into frame N+1's image.
+ * 2. Harris NMS checked idx±1 but stride=2 left those as 0 → everything passed.
+ *    FIX: Compute Harris at every pixel so NMS neighbors are valid.
+ * 3. Harris threshold 60 is meaningless for response values in the thousands.
+ *    FIX: Threshold = 5000, auto-calibrate available.
+ * 4. Buffer swap before grayscale write made prev/current ambiguous.
+ *    FIX: captureFrame() explicitly swaps then writes.
+ * 5. Ground plane needed too many tracked features for 160x120 resolution.
+ *    FIX: Min tracked = 6, stability increments by 2.
+ */
 
 const CFG = {
-  // Harris — reduced patch, fewer features, wider spacing
-  harrisPatchSize: 3,
-  harrisK: 0.04,
-  harrisThreshold: 60,
-  maxFeatures: 80,
-  minFeatureDistance: 16,
-
-  // NCC — smaller patch, tighter search
-  nccPatchSize: 7,
-  nccSearchRadius: 16,
-  nccThreshold: 0.55,
-
-  // Ground Plane
-  planeMinFeatures: 10,
-  planeStabilityFrames: 15,
-  planeHeightVariance: 0.18,
-
-  // Processing — much smaller resolution for mobile
-  processWidth: 160,
-  processHeight: 120,
-
-  // Camera intrinsics
-  focalLength: 200,
-
-  // Performance
-  slamSkipFrames: 3,       // Process SLAM every N frames
-  uiUpdateInterval: 200,   // ms between UI text updates
-  maxObjects: 20,
-  maxMapPoints: 300,
-
-  // Cube rendering
-  cubeBaseSize: 14,        // Small cube in screen pixels at scale=1
+  harrisK: 0.04, harrisThreshold: 5000, maxFeatures: 100, minFeatureDist: 10,
+  nccPatch: 7, nccRadius: 14, nccThreshold: 0.5,
+  planeMinTracked: 6, planeStability: 12, planeYVar: 0.22,
+  pw: 192, ph: 144, focal: 200,
+  slamEvery: 2, uiInterval: 250, maxObj: 20, maxMap: 200, cubeSize: 14,
 };
 
-// =====================================================
-//  IMAGE PROCESSING — Uint8 for speed
-// =====================================================
 class ImageProcessor {
-  constructor(w, h) {
-    this.w = w; this.h = h;
-    const len = w * h;
-    this.gray = new Uint8Array(len);
-    this.prevGray = new Uint8Array(len);
-    this.gradX = new Int16Array(len);
-    this.gradY = new Int16Array(len);
+  constructor(w,h){
+    this.w=w;this.h=h;const n=w*h;
+    this.a=new Uint8Array(n);this.b=new Uint8Array(n);
+    this.cur=this.a;this.prev=this.b;
+    this.gx=new Int16Array(n);this.gy=new Int16Array(n);
+    this.cnt=0;
   }
-
-  rgbToGray(data) {
-    const g = this.gray, len = this.w * this.h;
-    for (let i = 0; i < len; i++) {
-      const j = i << 2;
-      g[i] = (data[j] * 77 + data[j+1] * 150 + data[j+2] * 29) >> 8;
-    }
+  capture(rgba){
+    const t=this.prev;this.prev=this.cur;this.cur=t;
+    const g=this.cur,n=this.w*this.h;
+    for(let i=0;i<n;i++){const j=i<<2;g[i]=(rgba[j]*77+rgba[j+1]*150+rgba[j+2]*29)>>8;}
+    this.cnt++;
   }
-
-  swapBuffers() {
-    const t = this.prevGray; this.prevGray = this.gray; this.gray = t;
-  }
-
-  computeGradients() {
-    const g = this.gray, w = this.w, h = this.h, gx = this.gradX, gy = this.gradY;
-    for (let y = 1; y < h - 1; y++) {
-      const row = y * w;
-      for (let x = 1; x < w - 1; x++) {
-        const i = row + x;
-        gx[i] = g[i + 1] - g[i - 1];
-        gy[i] = g[i + w] - g[i - w];
-      }
-    }
+  grads(){
+    const g=this.cur,w=this.w,h=this.h,gx=this.gx,gy=this.gy;
+    for(let y=1;y<h-1;y++){const r=y*w;for(let x=1;x<w-1;x++){const i=r+x;gx[i]=g[i+1]-g[i-1];gy[i]=g[i+w]-g[i-w];}}
   }
 }
 
-// =====================================================
-//  HARRIS CORNER — Optimized with stride skip
-// =====================================================
 class HarrisDetector {
-  constructor(imgProc) {
-    this.img = imgProc;
-    this.response = new Int32Array(imgProc.w * imgProc.h);
-  }
-
-  detect() {
-    const { w, h } = this.img;
-    const gx = this.img.gradX, gy = this.img.gradY;
-    const R = this.response;
-    const k = CFG.harrisK;
-    // Patch size 3 → half = 1
-    const half = 1;
-
+  constructor(ip){this.ip=ip;this.R=new Float32Array(ip.w*ip.h);}
+  detect(){
+    const{w,h}=this.ip,gx=this.ip.gx,gy=this.ip.gy,R=this.R,k=CFG.harrisK;
     R.fill(0);
-
-    // Step by 2 to halve computation
-    for (let y = half + 1; y < h - half - 1; y += 2) {
-      for (let x = half + 1; x < w - half - 1; x += 2) {
-        let sxx = 0, syy = 0, sxy = 0;
-        for (let dy = -half; dy <= half; dy++) {
-          const rowIdx = (y + dy) * w;
-          for (let dx = -half; dx <= half; dx++) {
-            const idx = rowIdx + x + dx;
-            const ix = gx[idx], iy = gy[idx];
-            sxx += ix * ix;
-            syy += iy * iy;
-            sxy += ix * iy;
-          }
-        }
-        const det = sxx * syy - sxy * sxy;
-        const trace = sxx + syy;
-        R[y * w + x] = det - k * trace * trace;
-      }
+    for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){
+      let sxx=0,syy=0,sxy=0;
+      for(let dy=-1;dy<=1;dy++){const ri=(y+dy)*w;for(let dx=-1;dx<=1;dx++){const i=ri+x+dx,ix=gx[i],iy=gy[i];sxx+=ix*ix;syy+=iy*iy;sxy+=ix*iy;}}
+      R[y*w+x]=sxx*syy-sxy*sxy-k*(sxx+syy)*(sxx+syy);
     }
-
-    return this._extract();
+    return this._nms();
   }
-
-  _extract() {
-    const { w, h } = this.img;
-    const R = this.response;
-    const thresh = CFG.harrisThreshold;
-    const candidates = [];
-
-    for (let y = 3; y < h - 3; y += 2) {
-      for (let x = 3; x < w - 3; x += 2) {
-        const val = R[y * w + x];
-        if (val < thresh) continue;
-        // Simple 3x3 non-max (check only cardinal + diag at step 2)
-        const idx = y * w + x;
-        if (R[idx - 1] >= val || R[idx + 1] >= val ||
-            R[idx - w] >= val || R[idx + w] >= val) continue;
-        candidates.push({ x, y, score: val });
-      }
+  _nms(){
+    const{w,h}=this.ip,R=this.R,th=CFG.harrisThreshold,cands=[];
+    for(let y=3;y<h-3;y++)for(let x=3;x<w-3;x++){
+      const i=y*w+x,v=R[i];if(v<th)continue;
+      if(R[i-1]>=v||R[i+1]>=v||R[i-w]>=v||R[i+w]>=v||R[i-w-1]>=v||R[i-w+1]>=v||R[i+w-1]>=v||R[i+w+1]>=v)continue;
+      cands.push({x,y,score:v});
     }
-
-    candidates.sort((a, b) => b.score - a.score);
-    const features = [];
-    const minD2 = CFG.minFeatureDistance * CFG.minFeatureDistance;
-
-    for (let i = 0; i < candidates.length && features.length < CFG.maxFeatures; i++) {
-      const c = candidates[i];
-      let ok = true;
-      for (let j = 0; j < features.length; j++) {
-        const dx = c.x - features[j].x, dy = c.y - features[j].y;
-        if (dx * dx + dy * dy < minD2) { ok = false; break; }
-      }
-      if (ok) features.push(c);
+    cands.sort((a,b)=>b.score-a.score);
+    const feats=[],md2=CFG.minFeatureDist*CFG.minFeatureDist;
+    for(let i=0;i<cands.length&&feats.length<CFG.maxFeatures;i++){
+      const c=cands[i];let ok=true;
+      for(let j=0;j<feats.length;j++){const dx=c.x-feats[j].x,dy=c.y-feats[j].y;if(dx*dx+dy*dy<md2){ok=false;break;}}
+      if(ok)feats.push(c);
     }
-    return features;
+    return feats;
   }
 }
 
-// =====================================================
-//  OPTICAL FLOW NCC — Smaller patch, single pass
-// =====================================================
 class OpticalFlowNCC {
-  constructor(imgProc) { this.img = imgProc; }
-
-  track(prevFeatures) {
-    const curr = this.img.gray, prev = this.img.prevGray;
-    const w = this.img.w, h = this.img.h;
-    const half = (CFG.nccPatchSize - 1) >> 1; // 3 for patch=7
-    const sr = CFG.nccSearchRadius;
-    const patchN = CFG.nccPatchSize * CFG.nccPatchSize;
-    const tracked = [];
-
-    for (let fi = 0; fi < prevFeatures.length; fi++) {
-      const feat = prevFeatures[fi];
-      const px = feat.x | 0, py = feat.y | 0;
-      if (px - half < 0 || px + half >= w || py - half < 0 || py + half >= h) continue;
-
-      // Reference patch mean + std
-      let refMean = 0;
-      for (let dy = -half; dy <= half; dy++) {
-        const row = (py + dy) * w;
-        for (let dx = -half; dx <= half; dx++) refMean += prev[row + px + dx];
+  constructor(ip){this.ip=ip;}
+  track(prevFeats){
+    const prev=this.ip.prev,curr=this.ip.cur,w=this.ip.w,h=this.ip.h;
+    const half=(CFG.nccPatch-1)>>1,sr=CFG.nccRadius,pN=CFG.nccPatch*CFG.nccPatch;
+    const tracked=[];
+    for(let fi=0;fi<prevFeats.length;fi++){
+      const f=prevFeats[fi],px=f.x|0,py=f.y|0;
+      if(px-half<1||px+half>=w-1||py-half<1||py+half>=h-1)continue;
+      let rs=0;
+      for(let dy=-half;dy<=half;dy++){const row=(py+dy)*w;for(let dx=-half;dx<=half;dx++)rs+=prev[row+px+dx];}
+      const rm=rs/pN;
+      let rv=0;
+      for(let dy=-half;dy<=half;dy++){const row=(py+dy)*w;for(let dx=-half;dx<=half;dx++){const v=prev[row+px+dx]-rm;rv+=v*v;}}
+      const rstd=Math.sqrt(rv/pN);if(rstd<3)continue;
+      const x0=Math.max(half+1,px-sr),x1=Math.min(w-half-2,px+sr),y0=Math.max(half+1,py-sr),y1=Math.min(h-half-2,py+sr);
+      let bn=-1,bx=px,by=py;
+      // Coarse pass step=2
+      for(let cy=y0;cy<=y1;cy+=2)for(let cx=x0;cx<=x1;cx+=2){
+        let cs=0;for(let dy=-half;dy<=half;dy++){const row=(cy+dy)*w;for(let dx=-half;dx<=half;dx++)cs+=curr[row+cx+dx];}
+        const cm=cs/pN;let cv=0,cr=0;
+        for(let dy=-half;dy<=half;dy++){const pr=(py+dy)*w,cR=(cy+dy)*w;for(let dx=-half;dx<=half;dx++){const rv2=prev[pr+px+dx]-rm,cv2=curr[cR+cx+dx]-cm;cr+=rv2*cv2;cv+=cv2*cv2;}}
+        const cs2=Math.sqrt(cv/pN);if(cs2<3)continue;
+        const ncc=cr/(pN*rstd*cs2);if(ncc>bn){bn=ncc;bx=cx;by=cy;}
       }
-      refMean /= patchN;
-
-      let refVar = 0;
-      for (let dy = -half; dy <= half; dy++) {
-        const row = (py + dy) * w;
-        for (let dx = -half; dx <= half; dx++) {
-          const v = prev[row + px + dx] - refMean;
-          refVar += v * v;
+      // Refine ±2 step=1
+      if(bn>0.3){
+        const rx0=Math.max(half+1,bx-2),rx1=Math.min(w-half-2,bx+2),ry0=Math.max(half+1,by-2),ry1=Math.min(h-half-2,by+2);
+        for(let cy=ry0;cy<=ry1;cy++)for(let cx=rx0;cx<=rx1;cx++){
+          let cs=0;for(let dy=-half;dy<=half;dy++){const row=(cy+dy)*w;for(let dx=-half;dx<=half;dx++)cs+=curr[row+cx+dx];}
+          const cm=cs/pN;let cv=0,cr=0;
+          for(let dy=-half;dy<=half;dy++){const pr=(py+dy)*w,cR=(cy+dy)*w;for(let dx=-half;dx<=half;dx++){const rv2=prev[pr+px+dx]-rm,cv2=curr[cR+cx+dx]-cm;cr+=rv2*cv2;cv+=cv2*cv2;}}
+          const cs2=Math.sqrt(cv/pN);if(cs2<3)continue;
+          const ncc=cr/(pN*rstd*cs2);if(ncc>bn){bn=ncc;bx=cx;by=cy;}
         }
       }
-      const refStd = Math.sqrt(refVar / patchN);
-      if (refStd < 2) continue;
-
-      let bestNCC = -1, bestX = px, bestY = py;
-      const x0 = Math.max(half, px - sr), x1 = Math.min(w - half - 1, px + sr);
-      const y0 = Math.max(half, py - sr), y1 = Math.min(h - half - 1, py + sr);
-
-      // Single pass with step=2 for speed
-      for (let cy = y0; cy <= y1; cy += 2) {
-        for (let cx = x0; cx <= x1; cx += 2) {
-          let cMean = 0;
-          for (let dy = -half; dy <= half; dy++) {
-            const row = (cy + dy) * w;
-            for (let dx = -half; dx <= half; dx++) cMean += curr[row + cx + dx];
-          }
-          cMean /= patchN;
-
-          let cVar = 0, cross = 0;
-          for (let dy = -half; dy <= half; dy++) {
-            const pRow = (py + dy) * w, cRow = (cy + dy) * w;
-            for (let dx = -half; dx <= half; dx++) {
-              const rv = prev[pRow + px + dx] - refMean;
-              const cv = curr[cRow + cx + dx] - cMean;
-              cross += rv * cv;
-              cVar += cv * cv;
-            }
-          }
-          const cStd = Math.sqrt(cVar / patchN);
-          if (cStd < 2) continue;
-
-          const ncc = cross / (patchN * refStd * cStd);
-          if (ncc > bestNCC) { bestNCC = ncc; bestX = cx; bestY = cy; }
-        }
-      }
-
-      // Subpixel refine around best (step 1, ±1)
-      if (bestNCC > 0.3) {
-        const rx0 = Math.max(half, bestX - 1), rx1 = Math.min(w - half - 1, bestX + 1);
-        const ry0 = Math.max(half, bestY - 1), ry1 = Math.min(h - half - 1, bestY + 1);
-        for (let cy = ry0; cy <= ry1; cy++) {
-          for (let cx = rx0; cx <= rx1; cx++) {
-            let cMean = 0;
-            for (let dy = -half; dy <= half; dy++) {
-              const row = (cy + dy) * w;
-              for (let dx = -half; dx <= half; dx++) cMean += curr[row + cx + dx];
-            }
-            cMean /= patchN;
-            let cVar = 0, cross = 0;
-            for (let dy = -half; dy <= half; dy++) {
-              const pRow = (py + dy) * w, cRow = (cy + dy) * w;
-              for (let dx = -half; dx <= half; dx++) {
-                const rv = prev[pRow + px + dx] - refMean;
-                const cv = curr[cRow + cx + dx] - cMean;
-                cross += rv * cv;
-                cVar += cv * cv;
-              }
-            }
-            const cStd = Math.sqrt(cVar / patchN);
-            if (cStd < 2) continue;
-            const ncc = cross / (patchN * refStd * cStd);
-            if (ncc > bestNCC) { bestNCC = ncc; bestX = cx; bestY = cy; }
-          }
-        }
-      }
-
-      if (bestNCC > CFG.nccThreshold) {
-        tracked.push({
-          x: bestX, y: bestY,
-          px: feat.x, py: feat.y,
-          dx: bestX - feat.x, dy: bestY - feat.y,
-          ncc: bestNCC
-        });
-      }
+      if(bn>=CFG.nccThreshold)tracked.push({x:bx,y:by,px:f.x,py:f.y,dx:bx-f.x,dy:by-f.y,ncc:bn});
     }
     return tracked;
   }
 }
 
-// =====================================================
-//  POSE ESTIMATOR
-// =====================================================
 class PoseEstimator {
-  constructor() {
-    this.rotation = { x: 0, y: 0, z: 0 };
-    this.translation = { x: 0, y: 0, z: 0 };
-    this.gyroData = null;
-    this.stx = 0; this.sty = 0; this.stz = 0;
-  }
-
-  setGyro(a, b, g) { this.gyroData = { a, b, g }; }
-
-  estimate(tracked) {
-    if (tracked.length < 4) return;
-
-    const dxs = [], dys = [];
-    for (let i = 0; i < tracked.length; i++) { dxs.push(tracked[i].dx); dys.push(tracked[i].dy); }
-    dxs.sort((a, b) => a - b);
-    dys.sort((a, b) => a - b);
-    const mid = tracked.length >> 1;
-    const medDx = dxs[mid], medDy = dys[mid];
-
-    let avgDx = 0, avgDy = 0, cnt = 0, divergence = 0;
-    const cx = CFG.processWidth >> 1, cy = CFG.processHeight >> 1;
-
-    for (let i = 0; i < tracked.length; i++) {
-      const t = tracked[i];
-      if (Math.abs(t.dx - medDx) > 6 || Math.abs(t.dy - medDy) > 6) continue;
-      avgDx += t.dx; avgDy += t.dy; cnt++;
-      const rx = t.px - cx, ry = t.py - cy;
-      const len = Math.sqrt(rx * rx + ry * ry);
-      if (len > 4) divergence += (t.dx * rx + t.dy * ry) / len;
-    }
-    if (cnt < 3) return;
-    avgDx /= cnt; avgDy /= cnt; divergence /= cnt;
-
-    const a = 0.25;
-    this.stx += (-avgDx / CFG.focalLength) * a;
-    this.sty += (-avgDy / CFG.focalLength) * a;
-    this.stz += (divergence * 0.008) * a;
-    this.translation.x = this.stx;
-    this.translation.y = this.sty;
-    this.translation.z = this.stz;
-
-    this.rotation.y += avgDx * 0.0015;
-    this.rotation.x -= avgDy * 0.0015;
-
-    if (this.gyroData) {
-      const g = this.gyroData;
-      this.rotation.x = this.rotation.x * 0.7 + (g.b * Math.PI / 180) * 0.3;
-      this.rotation.y = this.rotation.y * 0.7 + (g.g * Math.PI / 180) * 0.3;
-    }
-
-    return { inlierCount: cnt };
+  constructor(){this.rot={x:0,y:0,z:0};this.pos={x:0,y:0,z:0};this.gyro=null;this.sx=0;this.sy=0;this.sz=0;}
+  setGyro(a,b,g){this.gyro={a,b,g};}
+  estimate(tr){
+    if(tr.length<3)return null;
+    const n=tr.length,da=new Float32Array(n),db=new Float32Array(n);
+    for(let i=0;i<n;i++){da[i]=tr[i].dx;db[i]=tr[i].dy;}
+    da.sort();db.sort();const m=n>>1,mdx=da[m],mdy=db[m];
+    let ax=0,ay=0,c=0,div=0;const cx=CFG.pw>>1,cy=CFG.ph>>1;
+    for(let i=0;i<n;i++){const t=tr[i];if(Math.abs(t.dx-mdx)>5||Math.abs(t.dy-mdy)>5)continue;
+      ax+=t.dx;ay+=t.dy;c++;const rx=t.px-cx,ry=t.py-cy,l=Math.sqrt(rx*rx+ry*ry);if(l>4)div+=(t.dx*rx+t.dy*ry)/l;}
+    if(c<2)return null;ax/=c;ay/=c;div/=c;
+    const al=0.2;this.sx+=(-ax/CFG.focal)*al;this.sy+=(-ay/CFG.focal)*al;this.sz+=(div*0.005)*al;
+    this.pos.x=this.sx;this.pos.y=this.sy;this.pos.z=this.sz;
+    this.rot.y+=ax*0.001;this.rot.x-=ay*0.001;
+    if(this.gyro){this.rot.x=this.rot.x*0.7+(this.gyro.b*Math.PI/180)*0.3;this.rot.y=this.rot.y*0.7+(this.gyro.g*Math.PI/180)*0.3;}
+    return{cnt:c};
   }
 }
 
-// =====================================================
-//  GROUND PLANE DETECTOR
-// =====================================================
-class GroundPlaneDetector {
-  constructor() { this.reset(); }
-  reset() { this.stability = 0; this.detected = false; this.planeY = 0; }
-
-  analyze(tracked) {
-    if (tracked.length < CFG.planeMinFeatures) {
-      this.stability = Math.max(0, this.stability - 2);
-      return null;
-    }
-
-    const ys = [];
-    for (let i = 0; i < tracked.length; i++) ys.push(tracked[i].y);
-    ys.sort((a, b) => a - b);
-    const median = ys[ys.length >> 1];
-
-    // Ground features = lower half
-    let gCount = 0, meanFx = 0, meanFy = 0, gMeanY = 0;
-    const gFeats = [];
-    for (let i = 0; i < tracked.length; i++) {
-      if (tracked[i].y > median) {
-        gFeats.push(tracked[i]);
-        meanFx += tracked[i].dx;
-        meanFy += tracked[i].dy;
-        gMeanY += tracked[i].y;
-        gCount++;
-      }
-    }
-    if (gCount < 5) { this.stability = Math.max(0, this.stability - 1); return null; }
-
-    meanFx /= gCount; meanFy /= gCount; gMeanY /= gCount;
-
-    let fvx = 0, fvy = 0, yVar = 0;
-    for (let i = 0; i < gFeats.length; i++) {
-      fvx += (gFeats[i].dx - meanFx) ** 2;
-      fvy += (gFeats[i].dy - meanFy) ** 2;
-      yVar += (gFeats[i].y - gMeanY) ** 2;
-    }
-    const coherence = 1 / (1 + Math.sqrt(fvx / gCount) + Math.sqrt(fvy / gCount));
-    const normVar = Math.sqrt(yVar / gCount) / CFG.processHeight;
-
-    const isPlane = coherence > 0.12 && normVar < CFG.planeHeightVariance;
-
-    if (isPlane) {
-      this.stability = Math.min(this.stability + 1, CFG.planeStabilityFrames + 5);
-    } else {
-      this.stability = Math.max(0, this.stability - 1);
-    }
-
-    if (this.stability >= CFG.planeStabilityFrames && !this.detected) {
-      this.detected = true;
-      this.planeY = gMeanY / CFG.processHeight;
-    }
-
-    return { coherence, variance: normVar, gCount };
+class GroundPlane {
+  constructor(){this.reset();}
+  reset(){this.stab=0;this.detected=false;this.planeY=0;}
+  analyze(tr){
+    if(tr.length<CFG.planeMinTracked){this.stab=Math.max(0,this.stab-1);return null;}
+    const n=tr.length,ys=new Float32Array(n);for(let i=0;i<n;i++)ys[i]=tr[i].y;
+    ys.sort();const med=ys[n>>1];
+    const gf=[];for(let i=0;i<n;i++)if(tr[i].y>=med)gf.push(tr[i]);
+    if(gf.length<3){this.stab=Math.max(0,this.stab-1);return null;}
+    const gn=gf.length;let mfx=0,mfy=0,mgy=0;
+    for(let i=0;i<gn;i++){mfx+=gf[i].dx;mfy+=gf[i].dy;mgy+=gf[i].y;}
+    mfx/=gn;mfy/=gn;mgy/=gn;
+    let fvx=0,fvy=0,yv=0;
+    for(let i=0;i<gn;i++){fvx+=(gf[i].dx-mfx)**2;fvy+=(gf[i].dy-mfy)**2;yv+=(gf[i].y-mgy)**2;}
+    const coh=1/(1+Math.sqrt(fvx/gn)+Math.sqrt(fvy/gn)),nyv=Math.sqrt(yv/gn)/CFG.ph;
+    const isP=coh>0.1&&nyv<CFG.planeYVar;
+    if(isP)this.stab=Math.min(this.stab+2,CFG.planeStability+8);else this.stab=Math.max(0,this.stab-1);
+    if(this.stab>=CFG.planeStability&&!this.detected){this.detected=true;this.planeY=mgy/CFG.ph;}
+    return{coh,nyv,gn};
   }
 }
 
-// =====================================================
-//  3D MAP (lightweight)
-// =====================================================
 class SLAMMap {
-  constructor() { this.points = []; }
-  addPoints(features, pose) {
-    for (let i = 0; i < features.length; i += 4) { // sample every 4th
-      if (this.points.length >= CFG.maxMapPoints) this.points.shift();
-      const f = features[i];
-      const z = 2 + Math.random() * 2;
-      this.points.push({
-        x: (f.x - (CFG.processWidth >> 1)) / CFG.focalLength * z + pose.translation.x,
-        y: (f.y - (CFG.processHeight >> 1)) / CFG.focalLength * z + pose.translation.y,
-        z: z + pose.translation.z,
-        life: 40
-      });
-    }
-  }
-  update() {
-    let j = 0;
-    for (let i = 0; i < this.points.length; i++) {
-      this.points[i].life--;
-      if (this.points[i].life > 0) this.points[j++] = this.points[i];
-    }
-    this.points.length = j;
-  }
-  reset() { this.points.length = 0; }
+  constructor(){this.pts=[];}
+  add(feats,pose){for(let i=0;i<feats.length;i+=3){if(this.pts.length>=CFG.maxMap)this.pts.shift();const f=feats[i],z=2+Math.random()*2;this.pts.push({x:(f.x-(CFG.pw>>1))/CFG.focal*z+pose.pos.x,y:(f.y-(CFG.ph>>1))/CFG.focal*z+pose.pos.y,z:z+pose.pos.z,life:40});}}
+  update(){let j=0;for(let i=0;i<this.pts.length;i++)if(--this.pts[i].life>0)this.pts[j++]=this.pts[i];this.pts.length=j;}
+  reset(){this.pts.length=0;}
 }
 
-// =====================================================
-//  AR RENDERER — Small Cube Only, No shadowBlur
-// =====================================================
 class ARRenderer {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.objects = [];
-    this.debugMode = false;
-    // Pre-computed cube colors
-    this._colors = [
-      { front: '#00e5a0', top: '#33ffbe', right: '#00b87e', shadow: 'rgba(0,229,160,0.15)' },
-      { front: '#00b8ff', top: '#44d0ff', right: '#0090cc', shadow: 'rgba(0,184,255,0.15)' },
-      { front: '#a855f7', top: '#c084fc', right: '#8630d9', shadow: 'rgba(168,85,247,0.15)' },
-      { front: '#ff6b35', top: '#ff9466', right: '#cc5228', shadow: 'rgba(255,107,53,0.15)' },
-      { front: '#eab308', top: '#fcd34d', right: '#b88e06', shadow: 'rgba(234,179,8,0.15)' },
+  constructor(canvas){
+    this.c=canvas;this.ctx=canvas.getContext('2d');this.objs=[];this.debug=false;
+    this.cols=[
+      {f:'#00e5a0',t:'#33ffbe',r:'#00b87e',s:'rgba(0,229,160,0.18)'},
+      {f:'#00b8ff',t:'#44d0ff',r:'#0090cc',s:'rgba(0,184,255,0.18)'},
+      {f:'#a855f7',t:'#c084fc',r:'#8630d9',s:'rgba(168,85,247,0.18)'},
+      {f:'#ff6b35',t:'#ff9466',r:'#cc5228',s:'rgba(255,107,53,0.18)'},
+      {f:'#eab308',t:'#fcd34d',r:'#b88e06',s:'rgba(234,179,8,0.18)'},
     ];
   }
-
-  project(x3d, y3d, z3d, pose, cw, ch) {
-    const rx = x3d - pose.translation.x;
-    const ry = y3d - pose.translation.y;
-    const rz = z3d - pose.translation.z;
-    if (rz <= 0.1) return null;
-
-    const cosY = Math.cos(pose.rotation.y), sinY = Math.sin(pose.rotation.y);
-    const cosX = Math.cos(pose.rotation.x), sinX = Math.sin(pose.rotation.x);
-    const x1 = rx * cosY - rz * sinY;
-    const z1 = rx * sinY + rz * cosY;
-    const y1 = ry * cosX - z1 * sinX;
-    const z2 = ry * sinX + z1 * cosX;
-    if (z2 <= 0.1) return null;
-
-    return {
-      x: (x1 * CFG.focalLength) / z2 + (cw >> 1),
-      y: (y1 * CFG.focalLength) / z2 + (ch >> 1),
-      scale: CFG.focalLength / z2
-    };
+  proj(x3,y3,z3,pose,cw,ch){
+    const rx=x3-pose.pos.x,ry=y3-pose.pos.y,rz=z3-pose.pos.z;if(rz<=0.1)return null;
+    const cy2=Math.cos(pose.rot.y),sy=Math.sin(pose.rot.y),cx2=Math.cos(pose.rot.x),sx=Math.sin(pose.rot.x);
+    const x1=rx*cy2-rz*sy,z1=rx*sy+rz*cy2,y1=ry*cx2-z1*sx,z2=ry*sx+z1*cx2;
+    if(z2<=0.1)return null;
+    return{x:(x1*CFG.focal)/z2+(cw>>1),y:(y1*CFG.focal)/z2+(ch>>1),sc:CFG.focal/z2};
   }
-
-  addObject(screenX, screenY, cw, ch, planeY, pose) {
-    if (this.objects.length >= CFG.maxObjects) return;
-    const worldX = (screenX - (cw >> 1)) / CFG.focalLength * 2.5 + pose.translation.x;
-    const worldY = planeY * 1.5 + pose.translation.y;
-    const worldZ = 2.5 + pose.translation.z;
-
-    this.objects.push({
-      x: worldX, y: worldY, z: worldZ,
-      colorIdx: (Math.random() * this._colors.length) | 0,
-      spawnTime: performance.now(),
-      rot: Math.random() * Math.PI * 2,
-      animScale: 0
-    });
+  addObj(sx,sy,cw,ch,py,pose){
+    if(this.objs.length>=CFG.maxObj)return;
+    this.objs.push({x:(sx-(cw>>1))/CFG.focal*2.5+pose.pos.x,y:py*1.5+pose.pos.y,z:2.5+pose.pos.z,
+      ci:(Math.random()*this.cols.length)|0,t0:performance.now(),rot:Math.random()*6.28,as:0});
   }
-
-  draw(pose) {
-    const ctx = this.ctx;
-    const cw = this.canvas.width, ch = this.canvas.height;
-    const now = performance.now();
-    const objs = this.objects;
-
-    // Sort by z — in-place for speed
-    objs.sort((a, b) => b.z - a.z);
-
-    for (let i = 0; i < objs.length; i++) {
-      const obj = objs[i];
-      const p = this.project(obj.x, obj.y, obj.z, pose, cw, ch);
-      if (!p) continue;
-
-      const age = (now - obj.spawnTime) * 0.003;
-      obj.animScale = age < 1 ? age * age * (3 - 2 * age) : 1; // smoothstep
-      obj.rot += 0.012;
-
-      const s = CFG.cubeBaseSize * p.scale * obj.animScale;
-      if (s < 1.5 || p.x < -60 || p.x > cw + 60 || p.y < -60 || p.y > ch + 60) continue;
-
-      const c = this._colors[obj.colorIdx];
-      const h = s * 0.5;
-      const off = h * 0.35; // isometric offset
-
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.globalAlpha = Math.min(1, obj.animScale);
-
-      // Ground shadow — simple ellipse, no shadowBlur
-      ctx.fillStyle = c.shadow;
-      ctx.beginPath();
-      ctx.ellipse(0, h + 2, s * 0.45, s * 0.1, 0, 0, 6.2832);
-      ctx.fill();
-
-      // Slow rotation via slight horizontal shift
-      const rotShift = Math.sin(obj.rot) * s * 0.08;
-
-      // Top face
-      ctx.fillStyle = c.top;
-      ctx.beginPath();
-      ctx.moveTo(-h + rotShift, -h);
-      ctx.lineTo(-h + off + rotShift, -h - off);
-      ctx.lineTo(h + off + rotShift, -h - off);
-      ctx.lineTo(h + rotShift, -h);
-      ctx.closePath();
-      ctx.fill();
-
-      // Front face
-      ctx.fillStyle = c.front;
-      ctx.fillRect(-h + rotShift, -h, s, s);
-
-      // Right face
-      ctx.fillStyle = c.right;
-      ctx.beginPath();
-      ctx.moveTo(h + rotShift, -h);
-      ctx.lineTo(h + off + rotShift, -h - off);
-      ctx.lineTo(h + off + rotShift, h - off);
-      ctx.lineTo(h + rotShift, h);
-      ctx.closePath();
-      ctx.fill();
-
-      // Subtle edge highlights
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(-h + rotShift, -h, s, s);
-
+  drawCubes(pose){
+    const ctx=this.ctx,cw=this.c.width,ch=this.c.height,now=performance.now();
+    this.objs.sort((a,b)=>b.z-a.z);
+    for(let i=0;i<this.objs.length;i++){
+      const o=this.objs[i],p=this.proj(o.x,o.y,o.z,pose,cw,ch);if(!p)continue;
+      const age=(now-o.t0)*0.003;o.as=age<1?age*age*(3-2*age):1;o.rot+=0.012;
+      const s=CFG.cubeSize*p.sc*o.as;if(s<1.5||p.x<-60||p.x>cw+60||p.y<-60||p.y>ch+60)continue;
+      const c=this.cols[o.ci],h=s*0.5,off=h*0.35,rs=Math.sin(o.rot)*s*0.08;
+      ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=Math.min(1,o.as);
+      ctx.fillStyle=c.s;ctx.beginPath();ctx.ellipse(0,h+2,s*0.45,s*0.1,0,0,6.28);ctx.fill();
+      ctx.fillStyle=c.t;ctx.beginPath();ctx.moveTo(-h+rs,-h);ctx.lineTo(-h+off+rs,-h-off);ctx.lineTo(h+off+rs,-h-off);ctx.lineTo(h+rs,-h);ctx.closePath();ctx.fill();
+      ctx.fillStyle=c.f;ctx.fillRect(-h+rs,-h,s,s);
+      ctx.fillStyle=c.r;ctx.beginPath();ctx.moveTo(h+rs,-h);ctx.lineTo(h+off+rs,-h-off);ctx.lineTo(h+off+rs,h-off);ctx.lineTo(h+rs,h);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=0.5;ctx.strokeRect(-h+rs,-h,s,s);
       ctx.restore();
     }
   }
-
-  drawFeatures(features, tracked) {
-    const ctx = this.ctx;
-    const cw = this.canvas.width, ch = this.canvas.height;
-    const sx = cw / CFG.processWidth, sy = ch / CFG.processHeight;
-
-    ctx.fillStyle = 'rgba(0,229,160,0.6)';
-    for (let i = 0; i < features.length; i++) {
-      const x = features[i].x * sx, y = features[i].y * sy;
-      ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+  drawFeats(feats,tracked){
+    const ctx=this.ctx,cw=this.c.width,ch=this.c.height,sx=cw/CFG.pw,sy=ch/CFG.ph;
+    ctx.fillStyle='rgba(0,229,160,0.7)';
+    for(let i=0;i<feats.length;i++)ctx.fillRect(feats[i].x*sx-2,feats[i].y*sy-2,4,4);
+    if(tracked.length>0){
+      ctx.strokeStyle='rgba(0,184,255,0.6)';ctx.lineWidth=1.5;ctx.beginPath();
+      for(let i=0;i<tracked.length;i++){ctx.moveTo(tracked[i].px*sx,tracked[i].py*sy);ctx.lineTo(tracked[i].x*sx,tracked[i].y*sy);}
+      ctx.stroke();
+      ctx.fillStyle='rgba(0,184,255,0.9)';
+      for(let i=0;i<tracked.length;i++)ctx.fillRect(tracked[i].x*sx-2,tracked[i].y*sy-2,4,4);
     }
-
-    ctx.strokeStyle = 'rgba(0,184,255,0.5)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < tracked.length; i++) {
-      const t = tracked[i];
-      ctx.moveTo(t.px * sx, t.py * sy);
-      ctx.lineTo(t.x * sx, t.y * sy);
-    }
-    ctx.stroke();
   }
-
-  drawGrid(pose, planeY, cw, ch) {
-    const ctx = this.ctx;
-    ctx.strokeStyle = 'rgba(0,229,160,0.06)';
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-
-    // Reduced grid: 5 lines each direction
-    for (let i = -4; i <= 4; i++) {
-      const v = i * 0.5;
-      const p1 = this.project(v, planeY, -1, pose, cw, ch);
-      const p2 = this.project(v, planeY, 5, pose, cw, ch);
-      if (p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
-      const p3 = this.project(-2, planeY, v + 2, pose, cw, ch);
-      const p4 = this.project(2, planeY, v + 2, pose, cw, ch);
-      if (p3 && p4) { ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); }
-    }
-    ctx.stroke();
+  drawGrid(pose,py,cw,ch){
+    const ctx=this.ctx;ctx.strokeStyle='rgba(0,229,160,0.06)';ctx.lineWidth=0.8;ctx.beginPath();
+    for(let i=-4;i<=4;i++){const v=i*0.5;
+      let p1=this.proj(v,py,-1,pose,cw,ch),p2=this.proj(v,py,5,pose,cw,ch);
+      if(p1&&p2){ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);}
+      p1=this.proj(-2,py,v+2,pose,cw,ch);p2=this.proj(2,py,v+2,pose,cw,ch);
+      if(p1&&p2){ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);}
+    }ctx.stroke();
   }
 }
 
-// =====================================================
-//  MAIN SYSTEM
-// =====================================================
-class SLAMARSystem {
-  constructor() {
-    this.video = document.getElementById('videoEl');
-    this.canvas = document.getElementById('arCanvas');
-    this.ctx = this.canvas.getContext('2d');
-
-    this.offscreen = document.createElement('canvas');
-    this.offscreen.width = CFG.processWidth;
-    this.offscreen.height = CFG.processHeight;
-    this.offCtx = this.offscreen.getContext('2d', { willReadFrequently: true });
-
-    this.imgProc = new ImageProcessor(CFG.processWidth, CFG.processHeight);
-    this.harris = new HarrisDetector(this.imgProc);
-    this.optflow = new OpticalFlowNCC(this.imgProc);
-    this.pose = new PoseEstimator();
-    this.plane = new GroundPlaneDetector();
-    this.map = new SLAMMap();
-    this.renderer = new ARRenderer(this.canvas);
-
-    this.features = [];
-    this.tracked = [];
-    this.running = false;
-    this.frameCount = 0;
-    this.fps = 0;
-    this.lastFpsTime = 0;
-    this.fpsFrames = 0;
-    this.lastUiUpdate = 0;
-    this.frameBudgetMs = 0;
-
-    // Cache DOM refs
-    this.dom = {
-      startScreen: document.getElementById('startScreen'),
-      statusPill: document.getElementById('statusPill'),
-      statusText: document.getElementById('statusText'),
-      fpsBadge: document.getElementById('fpsBadge'),
-      crosshair: document.getElementById('crosshair'),
-      planeInd: document.getElementById('planeIndicator'),
-      objCount: document.getElementById('objectCount'),
-      objCountVal: document.getElementById('objCountVal'),
-      instructions: document.getElementById('instructions'),
-      debugPanel: document.getElementById('debugPanel'),
-      dbgFeatures: document.getElementById('dbgFeatures'),
-      dbgTracked: document.getElementById('dbgTracked'),
-      dbgPose: document.getElementById('dbgPose'),
-      dbgPlane: document.getElementById('dbgPlane'),
-      dbgMap: document.getElementById('dbgMap'),
-      dbgGyro: document.getElementById('dbgGyro'),
-      dbgBudget: document.getElementById('dbgBudget'),
-      btnDebug: document.getElementById('btnDebug'),
-      btnCalibrate: document.getElementById('btnCalibrate'),
+// ===== MAIN SYSTEM =====
+class SLAMSystem {
+  constructor(){
+    this.vid=document.getElementById('videoEl');
+    this.cvs=document.getElementById('arCanvas');
+    this.ctx=this.cvs.getContext('2d');
+    this.off=document.createElement('canvas');this.off.width=CFG.pw;this.off.height=CFG.ph;
+    this.offCtx=this.off.getContext('2d',{willReadFrequently:true});
+    this.ip=new ImageProcessor(CFG.pw,CFG.ph);
+    this.harris=new HarrisDetector(this.ip);
+    this.flow=new OpticalFlowNCC(this.ip);
+    this.pose=new PoseEstimator();
+    this.plane=new GroundPlane();
+    this.map=new SLAMMap();
+    this.ren=new ARRenderer(this.cvs);
+    this.prevF=[];this.curF=[];this.tracked=[];
+    this.run=false;this.fc=0;this.sc=0;this.fps=0;this.fpsT=0;this.fpsC=0;this.uiT=0;this.budgetMs=0;this._ps=false;
+    this.d={};
+    ['startScreen','statusPill','statusText','fpsBadge','crosshair','objCountVal','instructions',
+     'debugPanel','dbgFeatures','dbgTracked','dbgPose','dbgPlane','dbgMap','dbgGyro','dbgBudget',
+     'btnDebug','btnCalibrate'].forEach(id=>this.d[id]=document.getElementById(id));
+    this.d.planeInd=document.getElementById('planeIndicator');
+    this.d.objCount=document.getElementById('objectCount');
+    this._ui();this._gyro();
+  }
+  _ui(){
+    document.getElementById('startBtn').onclick=()=>this.start();
+    this.d.btnDebug.onclick=()=>{this.ren.debug=!this.ren.debug;this.d.debugPanel.classList.toggle('show');this.d.btnDebug.classList.toggle('active');};
+    this.d.btnCalibrate.onclick=()=>{
+      const b=this.d.btnCalibrate;b.textContent='Calibrando...';b.classList.add('active');
+      if(this.curF.length<15)CFG.harrisThreshold=Math.max(500,CFG.harrisThreshold*0.6);
+      else if(this.curF.length>80)CFG.harrisThreshold=Math.min(50000,CFG.harrisThreshold*1.5);
+      setTimeout(()=>{b.textContent='Calibrar';b.classList.remove('active');},1200);
     };
-
-    this._planeShown = false;
-    this._setupUI();
-    this._setupGyro();
+    document.getElementById('btnReset').onclick=()=>this._reset();
+    this.cvs.addEventListener('click',e=>this._tap(e));
+    this.cvs.addEventListener('touchstart',e=>{e.preventDefault();this._tap({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});},{passive:false});
+    window.addEventListener('resize',()=>this._rsz());
   }
-
-  _setupUI() {
-    document.getElementById('startBtn').onclick = () => this.start();
-    this.dom.btnDebug.onclick = () => this._toggleDebug();
-    this.dom.btnCalibrate.onclick = () => this._calibrate();
-    document.getElementById('btnReset').onclick = () => this._reset();
-
-    this.canvas.addEventListener('click', e => this._onTap(e));
-    this.canvas.addEventListener('touchstart', e => {
-      e.preventDefault();
-      this._onTap({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    }, { passive: false });
-
-    window.addEventListener('resize', () => this._resize());
+  _gyro(){
+    if(!window.DeviceOrientationEvent)return;
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      document.getElementById('startBtn').addEventListener('click',()=>{DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')this._bg();}).catch(()=>{});},{once:true});
+    }else this._bg();
   }
-
-  _setupGyro() {
-    if (!window.DeviceOrientationEvent) return;
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      document.getElementById('startBtn').addEventListener('click', () => {
-        DeviceOrientationEvent.requestPermission().then(r => {
-          if (r === 'granted') this._bindGyro();
-        }).catch(() => {});
-      }, { once: true });
-    } else {
-      this._bindGyro();
-    }
+  _bg(){window.addEventListener('deviceorientation',e=>{if(e.alpha!==null)this.pose.setGyro(e.alpha,e.beta,e.gamma);});}
+  async start(){
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:480},height:{ideal:360}}});
+      this.vid.srcObject=s;await this.vid.play();
+      this.d.startScreen.classList.add('hidden');this._rsz();this.run=true;
+      this.d.instructions.classList.remove('hidden');setTimeout(()=>this.d.instructions.classList.add('hidden'),3500);
+      this.d.statusText.textContent='Buscando features...';this.fpsT=performance.now();this._loop();
+    }catch(e){alert('Erro câmera: '+e.message);}
   }
-
-  _bindGyro() {
-    window.addEventListener('deviceorientation', e => {
-      if (e.alpha !== null) this.pose.setGyro(e.alpha, e.beta, e.gamma);
-    });
+  _rsz(){
+    const dp=Math.min(window.devicePixelRatio||1,2),w=window.innerWidth,h=window.innerHeight;
+    this.cvs.width=w*dp;this.cvs.height=h*dp;this.cvs.style.width=w+'px';this.cvs.style.height=h+'px';
+    this.ctx.setTransform(dp,0,0,dp,0,0);this.dw=w;this.dh=h;
   }
-
-  async start() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 480 }, height: { ideal: 360 } }
-      });
-      this.video.srcObject = stream;
-      await this.video.play();
-
-      this.dom.startScreen.classList.add('hidden');
-      this._resize();
-      this.running = true;
-
-      this.dom.instructions.classList.remove('hidden');
-      setTimeout(() => this.dom.instructions.classList.add('hidden'), 3500);
-
-      this.dom.statusText.textContent = 'Buscando features...';
-      this.lastFpsTime = performance.now();
-      this._loop();
-    } catch (err) {
-      alert('Erro ao acessar câmera: ' + err.message);
-    }
+  _reset(){
+    this.prevF=[];this.curF=[];this.tracked=[];this.pose=new PoseEstimator();this.plane=new GroundPlane();
+    this.map.reset();this.ren.objs=[];this.fc=0;this.sc=0;this._ps=false;this.ip.cnt=0;CFG.harrisThreshold=5000;
+    this.d.statusPill.classList.remove('detected');this.d.statusText.textContent='Buscando features...';
+    this.d.planeInd.classList.remove('show');this.d.objCount.style.display='none';this.d.crosshair.classList.remove('active');
   }
-
-  _resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = window.innerWidth, h = window.innerHeight;
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
-    this.canvas.style.width = w + 'px';
-    this.canvas.style.height = h + 'px';
-    this.ctx.scale(dpr, dpr);
-    this.displayW = w;
-    this.displayH = h;
+  _tap(e){
+    if(!this.plane.detected)return;const r=this.cvs.getBoundingClientRect();
+    this.ren.addObj(e.clientX-r.left,e.clientY-r.top,this.dw,this.dh,this.plane.planeY,this.pose);
+    this.d.objCount.style.display='block';this.d.objCountVal.textContent=this.ren.objs.length;
   }
-
-  _toggleDebug() {
-    this.renderer.debugMode = !this.renderer.debugMode;
-    this.dom.debugPanel.classList.toggle('show');
-    this.dom.btnDebug.classList.toggle('active');
-  }
-
-  _calibrate() {
-    const btn = this.dom.btnCalibrate;
-    btn.textContent = 'Calibrando...';
-    btn.classList.add('active');
-    if (this.features.length < 15) CFG.harrisThreshold = Math.max(15, CFG.harrisThreshold - 10);
-    else if (this.features.length > 60) CFG.harrisThreshold = Math.min(150, CFG.harrisThreshold + 10);
-    setTimeout(() => { btn.textContent = 'Calibrar'; btn.classList.remove('active'); }, 1200);
-  }
-
-  _reset() {
-    this.features = []; this.tracked = [];
-    this.pose = new PoseEstimator();
-    this.plane = new GroundPlaneDetector();
-    this.map.reset();
-    this.renderer.objects = [];
-    this.frameCount = 0;
-    this._planeShown = false;
-    CFG.harrisThreshold = 60;
-    this.dom.statusPill.classList.remove('detected');
-    this.dom.statusText.textContent = 'Buscando features...';
-    this.dom.planeInd.classList.remove('show');
-    this.dom.objCount.style.display = 'none';
-    this.dom.crosshair.classList.remove('active');
-  }
-
-  _onTap(e) {
-    if (!this.plane.detected) return;
-    const rect = this.canvas.getBoundingClientRect();
-    this.renderer.addObject(
-      e.clientX - rect.left, e.clientY - rect.top,
-      this.displayW, this.displayH, this.plane.planeY, this.pose
-    );
-    this.dom.objCount.style.display = 'block';
-    this.dom.objCountVal.textContent = this.renderer.objects.length;
-  }
-
-  _loop() {
-    if (!this.running) return;
-    const frameStart = performance.now();
-
-    // FPS
-    this.fpsFrames++;
-    if (frameStart - this.lastFpsTime >= 1000) {
-      this.fps = this.fpsFrames;
-      this.fpsFrames = 0;
-      this.lastFpsTime = frameStart;
-      this.dom.fpsBadge.textContent = this.fps + ' FPS';
-    }
-
-    // Draw video to display canvas
-    this.ctx.drawImage(this.video, 0, 0, this.displayW, this.displayH);
-
-    // SLAM processing — only every N frames
-    if (this.frameCount % CFG.slamSkipFrames === 0) {
-      this.offCtx.drawImage(this.video, 0, 0, CFG.processWidth, CFG.processHeight);
-      const imgData = this.offCtx.getImageData(0, 0, CFG.processWidth, CFG.processHeight);
-
-      this.imgProc.swapBuffers();
-      this.imgProc.rgbToGray(imgData.data);
-      this.imgProc.computeGradients();
-
-      if (this.frameCount > CFG.slamSkipFrames * 2) {
-        this.features = this.harris.detect();
-        this.tracked = this.optflow.track(this.features);
-        this.pose.estimate(this.tracked);
-        this.plane.analyze(this.tracked);
-
-        if (this.tracked.length > 4) {
-          this.map.addPoints(this.tracked, this.pose);
-        }
-      }
-    }
-
+  _loop(){
+    if(!this.run)return;const t0=performance.now();
+    this.fpsC++;if(t0-this.fpsT>=1000){this.fps=this.fpsC;this.fpsC=0;this.fpsT=t0;this.d.fpsBadge.textContent=this.fps+' FPS';}
+    this.ctx.drawImage(this.vid,0,0,this.dw,this.dh);
+    if(this.fc%CFG.slamEvery===0)this._slam();
     this.map.update();
-
-    // Render overlays
-    if (this.plane.detected) {
-      this.renderer.drawGrid(this.pose, this.plane.planeY, this.displayW, this.displayH);
-    }
-    this.renderer.draw(this.pose);
-
-    if (this.renderer.debugMode) {
-      this.renderer.drawFeatures(this.features, this.tracked);
-    }
-
-    // Throttled UI updates
-    if (frameStart - this.lastUiUpdate > CFG.uiUpdateInterval) {
-      this.lastUiUpdate = frameStart;
-      this._updateUI();
-    }
-
-    this.frameBudgetMs = performance.now() - frameStart;
-    this.frameCount++;
-    requestAnimationFrame(() => this._loop());
+    if(this.plane.detected)this.ren.drawGrid(this.pose,this.plane.planeY,this.dw,this.dh);
+    this.ren.drawCubes(this.pose);
+    if(this.ren.debug)this.ren.drawFeats(this.curF,this.tracked);
+    if(t0-this.uiT>CFG.uiInterval){this.uiT=t0;this._upUI();}
+    this.budgetMs=performance.now()-t0;this.fc++;
+    requestAnimationFrame(()=>this._loop());
   }
-
-  _updateUI() {
-    if (this.plane.detected) {
-      if (!this._planeShown) {
-        this._planeShown = true;
-        this.dom.statusPill.classList.add('detected');
-        this.dom.statusText.textContent = 'Plano detectado • Toque para colocar';
-        this.dom.crosshair.classList.add('active');
-        this.dom.planeInd.classList.add('show');
-        setTimeout(() => this.dom.planeInd.classList.remove('show'), 2500);
-      }
-    } else if (this.features.length > 5) {
-      this.dom.statusText.textContent = `Rastreando ${this.tracked.length} features...`;
-    } else {
-      this.dom.statusText.textContent = 'Buscando features...';
-    }
-
-    if (this.renderer.debugMode) {
-      this.dom.dbgFeatures.textContent = this.features.length;
-      this.dom.dbgTracked.textContent = this.tracked.length;
-      this.dom.dbgPose.textContent =
-        `${this.pose.translation.x.toFixed(2)},${this.pose.translation.y.toFixed(2)},${this.pose.translation.z.toFixed(2)}`;
-      this.dom.dbgPlane.textContent = this.plane.detected ? 'YES' :
-        `${(this.plane.stability / CFG.planeStabilityFrames * 100 | 0)}%`;
-      this.dom.dbgMap.textContent = this.map.points.length;
-      this.dom.dbgBudget.textContent = this.frameBudgetMs.toFixed(1) + 'ms';
-      if (this.pose.gyroData) {
-        this.dom.dbgGyro.textContent = `${this.pose.gyroData.b?.toFixed(0)},${this.pose.gyroData.g?.toFixed(0)}`;
-      }
+  _slam(){
+    this.offCtx.drawImage(this.vid,0,0,CFG.pw,CFG.ph);
+    const d=this.offCtx.getImageData(0,0,CFG.pw,CFG.ph);
+    this.ip.capture(d.data);this.ip.grads();this.sc++;
+    if(this.sc<2){this.curF=this.harris.detect();this.prevF=this.curF;return;}
+    // Track PREVIOUS features into CURRENT frame
+    this.tracked=this.prevF.length>0?this.flow.track(this.prevF):[];
+    this.pose.estimate(this.tracked);
+    this.plane.analyze(this.tracked);
+    if(this.tracked.length>3)this.map.add(this.tracked,this.pose);
+    // Detect NEW features in current frame for next iteration
+    this.curF=this.harris.detect();
+    this.prevF=this.curF;
+  }
+  _upUI(){
+    if(this.plane.detected){
+      if(!this._ps){this._ps=true;this.d.statusPill.classList.add('detected');
+        this.d.statusText.textContent='Plano detectado · Toque para colocar';
+        this.d.crosshair.classList.add('active');this.d.planeInd.classList.add('show');
+        setTimeout(()=>this.d.planeInd.classList.remove('show'),2500);}
+    }else if(this.curF.length>3){
+      this.d.statusText.textContent='Rastreando '+this.tracked.length+'/'+this.curF.length+' features...';
+    }else this.d.statusText.textContent='Buscando features...';
+    if(this.ren.debug){
+      this.d.dbgFeatures.textContent=this.curF.length;
+      this.d.dbgTracked.textContent=this.tracked.length;
+      this.d.dbgPose.textContent=this.pose.pos.x.toFixed(3)+','+this.pose.pos.y.toFixed(3)+','+this.pose.pos.z.toFixed(3);
+      this.d.dbgPlane.textContent=this.plane.detected?'YES':(this.plane.stab/CFG.planeStability*100|0)+'%';
+      this.d.dbgMap.textContent=this.map.pts.length;
+      this.d.dbgBudget.textContent=this.budgetMs.toFixed(1)+'ms';
+      if(this.pose.gyro)this.d.dbgGyro.textContent=(this.pose.gyro.b?.toFixed(0)||'?')+','+(this.pose.gyro.g?.toFixed(0)||'?');
     }
   }
 }
-
-const app = new SLAMARSystem();
+const app=new SLAMSystem();
 </script>
 </body>
 </html>
