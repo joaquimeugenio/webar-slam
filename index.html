@@ -1,1521 +1,1174 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom SLAM AR Ground Plane</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Arial', sans-serif;
-            background: #000;
-            color: #fff;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        #camera-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-        
-        #camera-feed {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        #ar-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-            pointer-events: none;
-        }
-        
-        #debug-canvas {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 200px;
-            height: 150px;
-            border: 2px solid #00ff00;
-            z-index: 3;
-            opacity: 0.8;
-        }
-        
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 4;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .control-btn {
-            padding: 12px 24px;
-            background: linear-gradient(45deg, #00ff88, #0088ff);
-            border: none;
-            border-radius: 25px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
-        }
-        
-        .control-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.5);
-        }
-        
-        .control-btn:disabled {
-            background: #444;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        #status {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
-            z-index: 4;
-            border: 1px solid #00ff88;
-        }
-        
-        .status-item {
-            margin: 5px 0;
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-        }
-        
-        .status-value {
-            color: #00ff88;
-            font-weight: bold;
-        }
-        
-        #loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            flex-direction: column;
-        }
-        
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid #333;
-            border-top: 3px solid #00ff88;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .error {
-            background: #ff4444;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px;
-            text-align: center;
-        }
-        
-        .ground-plane-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100px;
-            height: 100px;
-            border: 2px solid #00ff88;
-            border-radius: 50%;
-            opacity: 0;
-            transition: all 0.5s ease;
-            z-index: 3;
-        }
-        
-        .ground-plane-indicator.detected {
-            opacity: 1;
-            animation: pulse 2s infinite;
-            border-color: #00ff88;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.2); }
-        }
-        
-        #status .status-value.tracking {
-            animation: pulseText 1.5s infinite;
-        }
-        
-        @keyframes pulseText {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SLAM AR — Ground Plane Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;
+  --text:#e8e8f0;--dim:#6b6b80;--accent:#00e5a0;--accent2:#00b8ff;
+  --warn:#ff6b35;--danger:#ff3366;
+  --glow:0 0 20px rgba(0,229,160,0.3);
+  --radius:12px;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif}
+#app{width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center}
+
+/* Start Screen */
+#startScreen{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);gap:24px;transition:opacity 0.6s,transform 0.6s}
+#startScreen.hidden{opacity:0;pointer-events:none;transform:scale(1.05)}
+#startScreen .logo{font-size:clamp(2rem,6vw,3.5rem);font-weight:800;letter-spacing:-2px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#startScreen .subtitle{color:var(--dim);font-size:0.95rem;font-weight:300;max-width:340px;text-align:center;line-height:1.6}
+#startScreen .features{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+#startScreen .feat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;font-size:0.8rem;color:var(--dim);display:flex;align-items:center;gap:8px}
+#startScreen .feat .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+
+#startBtn{
+  margin-top:12px;padding:16px 48px;border:none;border-radius:60px;
+  background:linear-gradient(135deg,var(--accent),#00c8e0);color:#0a0a0f;
+  font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;
+  cursor:pointer;letter-spacing:0.5px;transition:all 0.3s;
+  box-shadow:var(--glow)
+}
+#startBtn:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,229,160,0.5)}
+#startBtn:active{transform:scale(0.97)}
+
+/* AR Canvas */
+#videoEl{display:none}
+#arCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+/* HUD */
+.hud{position:absolute;z-index:10;pointer-events:none}
+.hud>*{pointer-events:auto}
+
+/* Top Bar */
+#topBar{top:0;left:0;right:0;padding:16px;display:flex;justify-content:space-between;align-items:flex-start}
+#statusPill{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(10,10,15,0.8);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:60px;padding:8px 16px;
+  font-family:'JetBrains Mono',monospace;font-size:0.75rem;
+  transition:all 0.4s
+}
+#statusPill.detected{border-color:var(--accent);box-shadow:var(--glow)}
+#statusDot{width:8px;height:8px;border-radius:50%;background:var(--warn);transition:background 0.4s}
+#statusPill.detected #statusDot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+#statusText{color:var(--dim);transition:color 0.3s}
+#statusPill.detected #statusText{color:var(--accent)}
+
+#fpsBadge{
+  background:rgba(10,10,15,0.8);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:6px 12px;font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--dim)
+}
+
+/* Bottom Controls */
+#bottomBar{bottom:0;left:0;right:0;padding:16px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.ctrl-btn{
+  padding:10px 20px;border:1px solid var(--border);border-radius:60px;
+  background:rgba(10,10,15,0.8);backdrop-filter:blur(16px);
+  color:var(--text);font-family:'Outfit',sans-serif;font-size:0.8rem;font-weight:500;
+  cursor:pointer;transition:all 0.25s;white-space:nowrap
+}
+.ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+.ctrl-btn:active{transform:scale(0.95)}
+.ctrl-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow)}
+.ctrl-btn.danger{border-color:var(--danger);color:var(--danger)}
+.ctrl-btn.danger:hover{background:rgba(255,51,102,0.1)}
+
+/* Crosshair */
+#crosshair{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:40px;height:40px;z-index:5;opacity:0.5;transition:opacity 0.3s
+}
+#crosshair.active{opacity:1}
+#crosshair::before,#crosshair::after{
+  content:'';position:absolute;background:var(--accent);border-radius:2px
+}
+#crosshair::before{width:2px;height:100%;left:50%;transform:translateX(-50%)}
+#crosshair::after{height:2px;width:100%;top:50%;transform:translateY(-50%)}
+
+/* Ground Plane Indicator */
+#planeIndicator{
+  position:absolute;bottom:100px;left:50%;transform:translateX(-50%);
+  background:rgba(10,10,15,0.85);backdrop-filter:blur(16px);
+  border:1px solid var(--accent);border-radius:var(--radius);
+  padding:10px 20px;font-size:0.8rem;color:var(--accent);
+  opacity:0;transition:all 0.5s;pointer-events:none;z-index:10;
+  box-shadow:var(--glow)
+}
+#planeIndicator.show{opacity:1;transform:translateX(-50%) translateY(-8px)}
+
+/* Debug overlay */
+#debugPanel{
+  position:absolute;top:60px;left:16px;z-index:15;
+  background:rgba(10,10,15,0.9);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;font-family:'JetBrains Mono',monospace;font-size:0.65rem;
+  color:var(--dim);line-height:1.8;min-width:200px;
+  display:none
+}
+#debugPanel.show{display:block}
+#debugPanel .val{color:var(--accent)}
+
+/* Placed objects info */
+#objectCount{
+  position:absolute;top:60px;right:16px;z-index:10;
+  background:rgba(10,10,15,0.8);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:6px 12px;font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--dim)
+}
+
+/* Instructions toast */
+#instructions{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(10,10,15,0.85);backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:16px;
+  padding:20px 28px;text-align:center;z-index:20;
+  transition:all 0.6s;max-width:320px
+}
+#instructions.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(0.9)}
+#instructions h3{font-size:0.95rem;font-weight:600;margin-bottom:8px;color:var(--text)}
+#instructions p{font-size:0.8rem;color:var(--dim);line-height:1.5}
+
+@media(max-width:480px){
+  .ctrl-btn{padding:8px 14px;font-size:0.72rem}
+  #topBar{padding:12px}
+  #bottomBar{padding:12px;gap:6px}
+}
+</style>
 </head>
 <body>
-    <div id="loading">
-        <div class="loading-spinner"></div>
-        <div>Inicializando SLAM Engine...</div>
-    </div>
-    
-    <div id="camera-container">
-        <video id="camera-feed" autoplay muted playsinline></video>
-        <canvas id="ar-canvas"></canvas>
-        <canvas id="debug-canvas"></canvas>
-        <div id="ground-plane-indicator" class="ground-plane-indicator"></div>
-    </div>
-    
-    <div id="status">
-        <div class="status-item">
-            <span>SLAM:</span>
-            <span id="slam-status" class="status-value">Inicializando</span>
-        </div>
-        <div class="status-item">
-            <span>Features:</span>
-            <span id="features-count" class="status-value">0</span>
-        </div>
-        <div class="status-item">
-            <span>Ground Plane:</span>
-            <span id="ground-plane-status" class="status-value">Procurando</span>
-        </div>
-        <div class="status-item">
-            <span>FPS:</span>
-            <span id="fps-counter" class="status-value">0</span>
-        </div>
-        <div class="status-item">
-            <span>Pose:</span>
-            <span id="pose-info" class="status-value">N/A</span>
-        </div>
-    </div>
-    
-    <div id="controls">
-        <button id="start-btn" class="control-btn">Iniciar AR</button>
-        <button id="calibrate-btn" class="control-btn" disabled>Calibrar</button>
-        <button id="reset-btn" class="control-btn" disabled>Reset</button>
-        <button id="place-object-btn" class="control-btn" disabled>Colocar Objeto</button>
-    </div>
+<div id="app">
 
-    <script>
-        class CustomSLAMEngine {
-            constructor() {
-                this.isInitialized = false;
-                this.features = [];
-                this.keyframes = [];
-                this.cameraMatrix = null;
-                this.groundPlane = null;
-                this.currentPose = { position: [0, 0, 0], rotation: [0, 0, 0] };
-                this.trackingState = 'NOT_TRACKING';
-                this.frameCount = 0;
-                this.lastTime = 0;
-                this.fps = 0;
-                
-                // Parâmetros do detector de features
-                this.cornerThreshold = 0.1;
-                this.maxFeatures = 500;
-                this.minFeatureDistance = 10;
-                
-                // Histórico para detecção de ground plane
-                this.motionHistory = [];
-                this.maxMotionHistory = 30;
-                this.groundPlaneDetectionAttempts = 0;
-                this.groundPlaneDetectionInterval = 5;
-                
-                // Objetos AR
-                this.arObjects = [];
-            }
-            
-            async initialize(video) {
-                try {
-                    console.log('Inicializando SLAM Engine...');
-                    this.video = video;
-                    
-                    // Wait for video dimensions with better timeout handling
-                    let attempts = 0;
-                    const maxAttempts = 100;
-                    const checkInterval = 100;
-                    
-                    while ((video.videoWidth === 0 || video.videoHeight === 0) {
-                        if (attempts++ >= maxAttempts) {
-                            throw new Error('Não foi possível obter dimensões do vídeo após ' + 
-                                          (maxAttempts * checkInterval) + 'ms');
-                        }
-                        await new Promise(resolve => setTimeout(resolve, checkInterval));
-                    }
-                    
-                    this.width = video.videoWidth;
-                    this.height = video.videoHeight;
-                    
-                    console.log('Dimensões do vídeo:', this.width, 'x', this.height);
-                    
-                    // Improved camera matrix initialization
-                    const fx = this.width * 1.2;
-                    const fy = this.height * 1.2;
-                    const cx = this.width / 2;
-                    const cy = this.height / 2;
-                    
-                    this.cameraMatrix = {
-                        fx: fx, fy: fy,
-                        cx: cx, cy: cy,
-                        width: this.width,
-                        height: this.height
-                    };
-                    
-                    // Initialize processing canvas with error handling
-                    this.processCanvas = document.createElement('canvas');
-                    this.processCanvas.width = this.width;
-                    this.processCanvas.height = this.height;
-                    
-                    let ctx;
-                    try {
-                        ctx = this.processCanvas.getContext('2d', { willReadFrequently: true });
-                        if (!ctx) throw new Error('Contexto 2D não disponível');
-                    } catch (e) {
-                        console.error('Erro ao criar contexto:', e);
-                        throw new Error('Falha ao inicializar canvas de processamento');
-                    }
-                    
-                    this.processCtx = ctx;
-                    
-                    // Initialize buffers
-                    this.prevGrayData = null;
-                    this.currentGrayData = null;
-                    
-                    // Test frame processing with more detailed error reporting
-                    try {
-                        this.processCtx.drawImage(video, 0, 0, this.width, this.height);
-                        const testData = this.processCtx.getImageData(0, 0, 10, 10);
-                        if (!testData || !testData.data) {
-                            throw new Error('Dados de imagem inválidos');
-                        }
-                        console.log('Teste de processamento de frame bem-sucedido');
-                    } catch (e) {
-                        console.error('Erro no teste de frame:', e);
-                        throw new Error('Falha no processamento inicial de frame: ' + e.message);
-                    }
-                    
-                    this.isInitialized = true;
-                    console.log('SLAM Engine inicializado com sucesso');
-                    
-                } catch (error) {
-                    console.error('Erro crítico ao inicializar SLAM Engine:', error);
-                    this.isInitialized = false;
-                    throw error;
-                }
-            }
-            
-            processFrame() {
-                if (!this.isInitialized || !this.video || this.video.readyState < 2) {
-                    return {
-                        features: [],
-                        pose: this.currentPose,
-                        groundPlane: null,
-                        trackingState: 'NOT_INITIALIZED',
-                        fps: this.fps
-                    };
-                }
-                
-                const startTime = performance.now();
-                
-                try {
-                    // Verify video is playing
-                    if (this.video.paused || this.video.ended) {
-                        console.warn('Vídeo pausado ou terminado');
-                        return {
-                            features: [],
-                            pose: this.currentPose,
-                            groundPlane: null,
-                            trackingState: 'NOT_TRACKING',
-                            fps: this.fps
-                        };
-                    }
-                    
-                    // Capturar frame atual
-                    this.processCtx.drawImage(this.video, 0, 0, this.width, this.height);
-                    const imageData = this.processCtx.getImageData(0, 0, this.width, this.height);
-                    
-                    // Converter para escala de cinza
-                    this.currentGrayData = this.rgbToGrayscale(imageData);
-                    
-                    // Detectar features
-                    const newFeatures = this.detectFeatures(this.currentGrayData);
-                    
-                    // Rastrear features existentes
-                    if (this.prevGrayData && this.features.length > 0) {
-                        this.trackFeatures();
-                    }
-                    
-                    // Atualizar features
-                    this.updateFeatures(newFeatures);
-                    
-                    // Estimar pose
-                    this.estimatePose();
-                    
-                    // Detectar ground plane
-                    this.detectGroundPlane();
-                    
-                    // Atualizar histórico
-                    this.updateMotionHistory();
-                    
-                    // Calcular FPS
-                    this.updateFPS(startTime);
-                    
-                    // Salvar frame anterior
-                    this.prevGrayData = this.currentGrayData;
-                    this.frameCount++;
-                    
-                    // Add ground plane detection counter
-                    if (this.groundPlane) {
-                        this.groundPlaneDetectionAttempts = 0;
-                    } else if (this.trackingState === 'TRACKING') {
-                        this.groundPlaneDetectionAttempts++;
-                        if (this.groundPlaneDetectionAttempts > 30) {
-                            console.log('Resetting features to help ground plane detection');
-                            this.features = [];
-                            this.groundPlaneDetectionAttempts = 0;
-                        }
-                    }
-                    
-                    return {
-                        features: this.features,
-                        pose: this.currentPose,
-                        groundPlane: this.groundPlane,
-                        trackingState: this.trackingState,
-                        fps: this.fps
-                    };
-                    
-                } catch (error) {
-                    console.error('Erro no processamento do frame:', error);
-                    return {
-                        features: this.features || [],
-                        pose: this.currentPose,
-                        groundPlane: null,
-                        trackingState: 'ERROR',
-                        fps: this.fps
-                    };
-                }
-            }
-            
-            detectGroundPlane() {
-                if (!this.isInitialized || this.features.length < 30 || 
-                    this.trackingState !== 'TRACKING' || 
-                    this.frameCount % this.groundPlaneDetectionInterval !== 0) {
-                    return;
-                }
-                
-                try {
-                    const features = this.features.filter(f => f.age > 3);
-                    if (features.length < 15) return;
-                    
-                    // Calculate feature distribution
-                    const { bottomFeatures, verticalDistribution } = this.analyzeFeatureDistribution(features);
-                    
-                    // Improved ground plane detection logic
-                    if (this.shouldDetectGroundPlane(bottomFeatures, verticalDistribution)) {
-                        const planeCenter = this.calculatePlaneCenter(bottomFeatures);
-                        const planeNormal = this.estimatePlaneNormal(features);
-                        
-                        this.groundPlane = {
-                            normal: planeNormal,
-                            distance: 0,
-                            confidence: this.calculatePlaneConfidence(bottomFeatures, features),
-                            center: planeCenter,
-                            timestamp: Date.now()
-                        };
-                        
-                        console.log('Ground plane detected with confidence:', this.groundPlane.confidence);
-                    }
-                } catch (error) {
-                    console.error('Error in ground plane detection:', error);
-                }
-            }
-            
-            analyzeFeatureDistribution(features) {
-                const bottomFeatures = features.filter(f => f.y > this.height * 0.5);
-                const verticalDistribution = Array(10).fill(0);
-                
-                features.forEach(f => {
-                    const bin = Math.min(Math.floor(f.y / (this.height / 10)), 9);
-                    verticalDistribution[bin]++;
-                });
-                
-                return { bottomFeatures, verticalDistribution };
-            }
-            
-            shouldDetectGroundPlane(bottomFeatures, verticalDistribution) {
-                const bottomRatio = bottomFeatures.length / this.features.length;
-                const isBottomHeavy = bottomRatio > 0.35;
-                
-                // Check if most features are in the bottom half
-                const bottomHalfCount = verticalDistribution.slice(5).reduce((a, b) => a + b, 0);
-                const topHalfCount = verticalDistribution.slice(0, 5).reduce((a, b) => a + b, 0);
-                const bottomDominance = bottomHalfCount > topHalfCount * 1.5;
-                
-                // Check motion stability
-                const recentMotion = this.motionHistory.slice(-10);
-                const avgMotion = recentMotion.reduce((sum, m) => sum + m, 0) / recentMotion.length;
-                const isStable = avgMotion < 8 && this.motionHistory.length > 15;
-                
-                return isBottomHeavy && bottomDominance && isStable;
-            }
-            
-            calculatePlaneCenter(bottomFeatures) {
-                let cx = 0, cy = 0;
-                bottomFeatures.forEach(f => {
-                    cx += f.x;
-                    cy += f.y;
-                });
-                cx /= bottomFeatures.length;
-                cy /= bottomFeatures.length;
-                
-                return [cx, cy];
-            }
-            
-            estimatePlaneNormal(features) {
-                return [0, 1, 0];
-            }
-            
-            calculatePlaneConfidence(bottomFeatures, allFeatures) {
-                const bottomRatio = bottomFeatures.length / allFeatures.length;
-                const motionStability = 1 - Math.min(this.motionHistory.slice(-10).reduce((a, b) => a + b, 0) / 100, 1);
-                
-                return Math.min(bottomRatio * 1.5 + motionStability * 0.5, 1.0);
-            }
-            
-            rgbToGrayscale(imageData) {
-                const data = imageData.data;
-                const grayData = new Uint8Array(this.width * this.height);
-                
-                for (let i = 0; i < data.length; i += 4) {
-                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                    grayData[i / 4] = gray;
-                }
-                
-                return grayData;
-            }
-            
-            detectFeatures(grayData) {
-                const features = [];
-                const stepSize = 8;
-                
-                for (let y = stepSize; y < this.height - stepSize; y += stepSize) {
-                    for (let x = stepSize; x < this.width - stepSize; x += stepSize) {
-                        const corner = this.computeCornerResponse(grayData, x, y);
-                        
-                        if (corner > this.cornerThreshold) {
-                            // Verificar se não está muito próximo de outras features
-                            let tooClose = false;
-                            for (const feature of features) {
-                                const dx = x - feature.x;
-                                const dy = y - feature.y;
-                                if (Math.sqrt(dx * dx + dy * dy) < this.minFeatureDistance) {
-                                    tooClose = true;
-                                    break;
-                                }
-                            }
-                            
-                            if (!tooClose) {
-                                features.push({
-                                    x: x,
-                                    y: y,
-                                    response: corner,
-                                    id: Math.random().toString(36).substr(2, 9),
-                                    age: 0
-                                });
-                            }
-                        }
-                    }
-                }
-                
-                // Ordenar por response e limitar número máximo
-                features.sort((a, b) => b.response - a.response);
-                return features.slice(0, this.maxFeatures);
-            }
-            
-            computeCornerResponse(grayData, x, y) {
-                const window = 3;
-                let Ixx = 0, Iyy = 0, Ixy = 0;
-                
-                for (let dy = -window; dy <= window; dy++) {
-                    for (let dx = -window; dx <= window; dx++) {
-                        const px = x + dx;
-                        const py = y + dy;
-                        
-                        if (px >= 1 && px < this.width - 1 && py >= 1 && py < this.height - 1) {
-                            const idx = py * this.width + px;
-                            
-                            // Gradientes
-                            const Ix = grayData[idx + 1] - grayData[idx - 1];
-                            const Iy = grayData[idx + this.width] - grayData[idx - this.width];
-                            
-                            Ixx += Ix * Ix;
-                            Iyy += Iy * Iy;
-                            Ixy += Ix * Iy;
-                        }
-                    }
-                }
-                
-                // Harris corner response
-                const det = Ixx * Iyy - Ixy * Ixy;
-                const trace = Ixx + Iyy;
-                const k = 0.04;
-                
-                return det - k * trace * trace;
-            }
-            
-            trackFeatures() {
-                const trackedFeatures = [];
-                
-                for (const feature of this.features) {
-                    const newPos = this.trackFeature(feature);
-                    if (newPos) {
-                        trackedFeatures.push({
-                            ...feature,
-                            x: newPos.x,
-                            y: newPos.y,
-                            age: feature.age + 1
-                        });
-                    }
-                }
-                
-                this.features = trackedFeatures;
-            }
-            
-            trackFeature(feature) {
-                const windowSize = 15;
-                const searchRange = 20;
-                
-                let bestMatch = null;
-                let bestScore = -1;
-                
-                for (let dy = -searchRange; dy <= searchRange; dy += 2) {
-                    for (let dx = -searchRange; dx <= searchRange; dx += 2) {
-                        const newX = feature.x + dx;
-                        const newY = feature.y + dy;
-                        
-                        if (newX >= windowSize && newX < this.width - windowSize &&
-                            newY >= windowSize && newY < this.height - windowSize) {
-                            
-                            const score = this.computeNCC(feature.x, feature.y, newX, newY, windowSize);
-                            if (score > bestScore) {
-                                bestScore = score;
-                                bestMatch = { x: newX, y: newY };
-                            }
-                        }
-                    }
-                }
-                
-                return bestScore > 0.7 ? bestMatch : null;
-            }
-            
-            computeNCC(x1, y1, x2, y2, windowSize) {
-                let sum1 = 0, sum2 = 0, sum11 = 0, sum22 = 0, sum12 = 0;
-                let count = 0;
-                
-                for (let dy = -windowSize; dy <= windowSize; dy++) {
-                    for (let dx = -windowSize; dx <= windowSize; dx++) {
-                        const idx1 = (y1 + dy) * this.width + (x1 + dx);
-                        const idx2 = (y2 + dy) * this.width + (x2 + dx);
-                        
-                        if (idx1 >= 0 && idx1 < this.prevGrayData.length &&
-                            idx2 >= 0 && idx2 < this.currentGrayData.length) {
-                            
-                            const val1 = this.prevGrayData[idx1];
-                            const val2 = this.currentGrayData[idx2];
-                            
-                            sum1 += val1;
-                            sum2 += val2;
-                            sum11 += val1 * val1;
-                            sum22 += val2 * val2;
-                            sum12 += val1 * val2;
-                            count++;
-                        }
-                    }
-                }
-                
-                if (count === 0) return 0;
-                
-                const mean1 = sum1 / count;
-                const mean2 = sum2 / count;
-                const var1 = sum11 / count - mean1 * mean1;
-                const var2 = sum22 / count - mean2 * mean2;
-                const covar = sum12 / count - mean1 * mean2;
-                
-                const denom = Math.sqrt(var1 * var2);
-                return denom > 0 ? covar / denom : 0;
-            }
-            
-            updateFeatures(newFeatures) {
-                // Remover features antigas
-                this.features = this.features.filter(f => f.age < 50);
-                
-                // Adicionar novas features se necessário
-                const numToAdd = Math.max(0, this.maxFeatures - this.features.length);
-                for (let i = 0; i < numToAdd && i < newFeatures.length; i++) {
-                    this.features.push(newFeatures[i]);
-                }
-            }
-            
-            estimatePose() {
-                if (this.features.length < 8) {
-                    this.trackingState = 'NOT_TRACKING';
-                    return;
-                }
-                
-                // Estimativa simples de pose baseada no movimento das features
-                let avgDx = 0, avgDy = 0;
-                let validFeatures = 0;
-                
-                for (const feature of this.features) {
-                    if (feature.age > 0) {
-                        avgDx += feature.x - (feature.prevX || feature.x);
-                        avgDy += feature.y - (feature.prevY || feature.y);
-                        validFeatures++;
-                    }
-                    feature.prevX = feature.x;
-                    feature.prevY = feature.y;
-                }
-                
-                if (validFeatures > 0) {
-                    avgDx /= validFeatures;
-                    avgDy /= validFeatures;
-                    
-                    // Atualizar pose (simplificado)
-                    this.currentPose.position[0] += avgDx * 0.001;
-                    this.currentPose.position[2] += avgDy * 0.001;
-                    
-                    this.trackingState = 'TRACKING';
-                } else {
-                    this.trackingState = 'NOT_TRACKING';
-                }
-            }
-            
-            updateMotionHistory() {
-                if (this.features.length > 0) {
-                    let totalMotion = 0;
-                    let validFeatures = 0;
-                    
-                    for (const feature of this.features) {
-                        if (feature.age > 0 && feature.prevX !== undefined) {
-                            const dx = feature.x - feature.prevX;
-                            const dy = feature.y - feature.prevY;
-                            totalMotion += Math.sqrt(dx * dx + dy * dy);
-                            validFeatures++;
-                        }
-                    }
-                    
-                    if (validFeatures > 0) {
-                        const avgMotion = totalMotion / validFeatures;
-                        this.motionHistory.push(avgMotion);
-                        
-                        if (this.motionHistory.length > this.maxMotionHistory) {
-                            this.motionHistory.shift();
-                        }
-                    }
-                }
-            }
-            
-            updateFPS(startTime) {
-                const currentTime = performance.now();
-                const deltaTime = currentTime - this.lastTime;
-                
-                if (deltaTime > 0) {
-                    this.fps = Math.round(1000 / deltaTime);
-                    this.lastTime = currentTime;
-                }
-            }
-            
-            addARObject(x, y, z, type = 'cube') {
-                const object = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    position: [x, y, z],
-                    type: type,
-                    color: `hsl(${Math.random() * 360}, 70%, 50%)`
-                };
-                
-                this.arObjects.push(object);
-                return object;
-            }
-            
-            reset() {
-                this.features = [];
-                this.keyframes = [];
-                this.groundPlane = null;
-                this.currentPose = { position: [0, 0, 0], rotation: [0, 0, 0] };
-                this.trackingState = 'NOT_TRACKING';
-                this.motionHistory = [];
-                this.arObjects = [];
-                this.frameCount = 0;
-                this.groundPlaneDetectionAttempts = 0;
-            }
+  <!-- Start Screen -->
+  <div id="startScreen">
+    <div class="logo">SLAM AR</div>
+    <div class="subtitle">Sistema completo de Realidade Aumentada com detecção de plano no navegador — sem ARKit ou ARCore.</div>
+    <div class="features">
+      <div class="feat"><span class="dot"></span>Harris Corner</div>
+      <div class="feat"><span class="dot"></span>Optical Flow</div>
+      <div class="feat"><span class="dot"></span>Ground Plane</div>
+      <div class="feat"><span class="dot"></span>3D Rendering</div>
+    </div>
+    <button id="startBtn">Iniciar AR</button>
+  </div>
+
+  <!-- Video (hidden, source for canvas) -->
+  <video id="videoEl" playsinline autoplay muted></video>
+
+  <!-- Main AR Canvas -->
+  <canvas id="arCanvas"></canvas>
+
+  <!-- Crosshair -->
+  <div id="crosshair"></div>
+
+  <!-- HUD -->
+  <div class="hud" id="topBar">
+    <div id="statusPill">
+      <div id="statusDot"></div>
+      <span id="statusText">Inicializando...</span>
+    </div>
+    <div id="fpsBadge">-- FPS</div>
+  </div>
+
+  <div id="objectCount" style="display:none">Objetos: <span id="objCountVal">0</span></div>
+
+  <div id="debugPanel">
+    Features: <span class="val" id="dbgFeatures">0</span><br>
+    Tracked: <span class="val" id="dbgTracked">0</span><br>
+    Pose Δ: <span class="val" id="dbgPose">0,0,0</span><br>
+    Plane: <span class="val" id="dbgPlane">--</span><br>
+    Map pts: <span class="val" id="dbgMap">0</span><br>
+    Gyro: <span class="val" id="dbgGyro">--</span>
+  </div>
+
+  <div id="planeIndicator">✦ Ground Plane Detectado</div>
+
+  <div id="instructions" class="hidden">
+    <h3>Mova a câmera lentamente</h3>
+    <p>Aponte para uma superfície plana e mova o dispositivo devagar para detectar o plano.</p>
+  </div>
+
+  <div class="hud" id="bottomBar">
+    <button class="ctrl-btn" id="btnDebug">Debug</button>
+    <button class="ctrl-btn" id="btnCalibrate">Calibrar</button>
+    <button class="ctrl-btn danger" id="btnReset">Reset</button>
+  </div>
+</div>
+
+<script>
+// =====================================================
+//  SLAM AR SYSTEM — Complete Browser Implementation
+// =====================================================
+
+const CFG = {
+  // Harris Corner
+  harrisPatchSize: 5,
+  harrisK: 0.04,
+  harrisThreshold: 80,
+  maxFeatures: 200,
+  minFeatureDistance: 12,
+
+  // Optical Flow (NCC)
+  nccPatchSize: 11,
+  nccSearchRadius: 24,
+  nccThreshold: 0.6,
+
+  // Ground Plane
+  planeMinFeatures: 15,
+  planeStabilityFrames: 20,
+  planeHeightVariance: 0.15,
+
+  // Render
+  processWidth: 320,
+  processHeight: 240,
+  targetFPS: 30,
+
+  // Camera intrinsics approximation
+  focalLength: 300,
+};
+
+// =====================================================
+//  IMAGE PROCESSING
+// =====================================================
+class ImageProcessor {
+  constructor(w, h) {
+    this.w = w;
+    this.h = h;
+    this.gray = new Float32Array(w * h);
+    this.prevGray = new Float32Array(w * h);
+    this.gradX = new Float32Array(w * h);
+    this.gradY = new Float32Array(w * h);
+  }
+
+  rgbToGray(imageData) {
+    const d = imageData.data;
+    const g = this.gray;
+    const len = this.w * this.h;
+    for (let i = 0; i < len; i++) {
+      const j = i * 4;
+      g[i] = 0.299 * d[j] + 0.587 * d[j+1] + 0.114 * d[j+2];
+    }
+  }
+
+  swapBuffers() {
+    const tmp = this.prevGray;
+    this.prevGray = this.gray;
+    this.gray = tmp;
+  }
+
+  computeGradients() {
+    const g = this.gray, w = this.w, h = this.h;
+    const gx = this.gradX, gy = this.gradY;
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = y * w + x;
+        gx[idx] = (g[idx + 1] - g[idx - 1]) * 0.5;
+        gy[idx] = (g[idx + w] - g[idx - w]) * 0.5;
+      }
+    }
+  }
+}
+
+// =====================================================
+//  HARRIS CORNER DETECTOR
+// =====================================================
+class HarrisDetector {
+  constructor(imgProc) {
+    this.img = imgProc;
+    this.response = new Float32Array(imgProc.w * imgProc.h);
+  }
+
+  detect() {
+    const { w, h } = this.img;
+    const gx = this.img.gradX, gy = this.img.gradY;
+    const R = this.response;
+    const half = (CFG.harrisPatchSize - 1) >> 1;
+    const k = CFG.harrisK;
+
+    R.fill(0);
+
+    for (let y = half + 1; y < h - half - 1; y++) {
+      for (let x = half + 1; x < w - half - 1; x++) {
+        let sxx = 0, syy = 0, sxy = 0;
+        for (let dy = -half; dy <= half; dy++) {
+          for (let dx = -half; dx <= half; dx++) {
+            const idx = (y + dy) * w + (x + dx);
+            const ix = gx[idx], iy = gy[idx];
+            sxx += ix * ix;
+            syy += iy * iy;
+            sxy += ix * iy;
+          }
         }
-        
-        class ARRenderer {
-            constructor(canvas) {
-                this.canvas = canvas;
-                this.ctx = canvas.getContext('2d');
-                this.width = canvas.width;
-                this.height = canvas.height;
-            }
-            
-            resize(width, height) {
-                this.width = width;
-                this.height = height;
-                this.canvas.width = width;
-                this.canvas.height = height;
-            }
-            
-            clear() {
-                this.ctx.clearRect(0, 0, this.width, this.height);
-            }
-            
-            drawFeatures(features) {
-                this.ctx.fillStyle = '#00ff00';
-                this.ctx.strokeStyle = '#00ff00';
-                
-                for (const feature of features) {
-                    const size = feature.age > 10 ? 4 : 2;
-                    this.ctx.fillRect(feature.x - size/2, feature.y - size/2, size, size);
-                    
-                    // Desenhar ID das features antigas
-                    if (feature.age > 20) {
-                        this.ctx.font = '8px Arial';
-                        this.ctx.fillText(feature.age, feature.x + 5, feature.y - 5);
-                    }
-                }
-            }
-            
-            drawGroundPlane(groundPlane) {
-                if (!groundPlane) return;
-                
-                this.ctx.strokeStyle = '#ff00ff';
-                this.ctx.lineWidth = 2;
-                this.ctx.setLineDash([5, 5]);
-                
-                // Desenhar grid do ground plane
-                const gridSize = 50;
-                const centerX = groundPlane.center[0];
-                const centerY = groundPlane.center[1];
-                
-                for (let i = -5; i <= 5; i++) {
-                    // Linhas horizontais
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(centerX - 5 * gridSize, centerY + i * gridSize);
-                    this.ctx.lineTo(centerX + 5 * gridSize, centerY + i * gridSize);
-                    this.ctx.stroke();
-                    
-                    // Linhas verticais
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(centerX + i * gridSize, centerY - 5 * gridSize);
-                    this.ctx.lineTo(centerX + i * gridSize, centerY + 5 * gridSize);
-                    this.ctx.stroke();
-                }
-                
-                this.ctx.setLineDash([]);
-                
-                // Draw confidence indicator
-                this.ctx.fillStyle = 'rgba(0, 255, 136, 0.5)';
-                this.ctx.font = '12px Arial';
-                this.ctx.fillText(`${Math.round(groundPlane.confidence * 100)}%`, centerX + 60, centerY);
-            }
-            
-            drawARObjects(objects, groundPlane) {
-                if (!groundPlane || objects.length === 0) return;
-                
-                for (const obj of objects) {
-                    this.ctx.fillStyle = obj.color;
-                    this.ctx.strokeStyle = '#ffffff';
-                    this.ctx.lineWidth = 2;
-                    
-                    // Projetar posição 3D para 2D (simplificado)
-                    const screenX = groundPlane.center[0] + obj.position[0] * 100;
-                    const screenY = groundPlane.center[1] + obj.position[2] * 100;
-                    
-                    if (obj.type === 'cube') {
-                        const size = 20;
-                        this.ctx.fillRect(screenX - size/2, screenY - size/2, size, size);
-                        this.ctx.strokeRect(screenX - size/2, screenY - size/2, size, size);
-                    } else if (obj.type === 'sphere') {
-                        const radius = 15;
-                        this.ctx.beginPath();
-                        this.ctx.arc(screenX, screenY, radius, 0, 2 * Math.PI);
-                        this.ctx.fill();
-                        this.ctx.stroke();
-                    }
-                    
-                    // Desenhar sombra
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                    this.ctx.fillRect(screenX - 10, screenY + 15, 20, 5);
-                }
-            }
-            
-            drawPoseInfo(pose) {
-                this.ctx.fillStyle = '#ffffff';
-                this.ctx.font = '12px Arial';
-                const text = `Pose: (${pose.position[0].toFixed(2)}, ${pose.position[1].toFixed(2)}, ${pose.position[2].toFixed(2)})`;
-                this.ctx.fillText(text, 10, this.height - 10);
-            }
+        const det = sxx * syy - sxy * sxy;
+        const trace = sxx + syy;
+        R[y * w + x] = det - k * trace * trace;
+      }
+    }
+
+    return this.extractFeatures();
+  }
+
+  extractFeatures() {
+    const { w, h } = this.img;
+    const R = this.response;
+    const thresh = CFG.harrisThreshold;
+    const candidates = [];
+
+    // Non-maximum suppression with 3x3 window
+    for (let y = 3; y < h - 3; y++) {
+      for (let x = 3; x < w - 3; x++) {
+        const idx = y * w + x;
+        const val = R[idx];
+        if (val < thresh) continue;
+        let isMax = true;
+        for (let dy = -1; dy <= 1 && isMax; dy++) {
+          for (let dx = -1; dx <= 1 && isMax; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (R[(y + dy) * w + (x + dx)] >= val) isMax = false;
+          }
         }
-        
-        class DebugRenderer {
-            constructor(canvas) {
-                this.canvas = canvas;
-                this.ctx = canvas.getContext('2d');
-                this.width = canvas.width;
-                this.height = canvas.height;
-            }
-            
-            clear() {
-                this.ctx.clearRect(0, 0, this.width, this.height);
-            }
-            
-            drawFeatureDistribution(features, canvasWidth, canvasHeight) {
-                this.clear();
-                
-                // Mapear features para o canvas de debug
-                const scaleX = this.width / canvasWidth;
-                const scaleY = this.height / canvasHeight;
-                
-                this.ctx.fillStyle = '#00ff00';
-                for (const feature of features) {
-                    const x = feature.x * scaleX;
-                    const y = feature.y * scaleY;
-                    this.ctx.fillRect(x - 1, y - 1, 2, 2);
-                }
-                
-                // Desenhar estatísticas
-                this.ctx.fillStyle = '#ffffff';
-                this.ctx.font = '10px Arial';
-                this.ctx.fillText(`Features: ${features.length}`, 5, 15);
-                
-                if (features.length > 0) {
-                    const avgAge = features.reduce((sum, f) => sum + f.age, 0) / features.length;
-                    this.ctx.fillText(`Avg Age: ${avgAge.toFixed(1)}`, 5, 30);
-                    
-                    // Draw feature distribution histogram
-                    const histHeight = 30;
-                    const histWidth = 100;
-                    const binCount = 10;
-                    const bins = Array(binCount).fill(0);
-                    
-                    features.forEach(f => {
-                        const bin = Math.min(Math.floor(f.y / (canvasHeight / binCount)), binCount - 1);
-                        bins[bin]++;
-                    });
-                    
-                    const maxBin = Math.max(...bins);
-                    
-                    this.ctx.fillStyle = 'rgba(0, 255, 136, 0.5)';
-                    for (let i = 0; i < binCount; i++) {
-                        const barHeight = (bins[i] / maxBin) * histHeight;
-                        this.ctx.fillRect(
-                            5 + (i * (histWidth / binCount)),
-                            60 - barHeight,
-                            histWidth / binCount - 2,
-                            barHeight
-                        );
-                    }
-                    
-                    this.ctx.fillStyle = '#ffffff';
-                    this.ctx.fillText('Distribuição vertical:', 5, 70);
-                }
-            }
+        if (isMax) candidates.push({ x, y, score: val });
+      }
+    }
+
+    // Sort by score, apply min distance
+    candidates.sort((a, b) => b.score - a.score);
+    const features = [];
+    const minDist2 = CFG.minFeatureDistance * CFG.minFeatureDistance;
+
+    for (const c of candidates) {
+      if (features.length >= CFG.maxFeatures) break;
+      let tooClose = false;
+      for (const f of features) {
+        const dx = c.x - f.x, dy = c.y - f.y;
+        if (dx * dx + dy * dy < minDist2) { tooClose = true; break; }
+      }
+      if (!tooClose) features.push(c);
+    }
+    return features;
+  }
+}
+
+// =====================================================
+//  OPTICAL FLOW (NCC Tracker)
+// =====================================================
+class OpticalFlowNCC {
+  constructor(imgProc) {
+    this.img = imgProc;
+  }
+
+  track(prevFeatures) {
+    const curr = this.img.gray, prev = this.img.prevGray;
+    const w = this.img.w, h = this.img.h;
+    const half = (CFG.nccPatchSize - 1) >> 1;
+    const sr = CFG.nccSearchRadius;
+    const tracked = [];
+
+    for (const feat of prevFeatures) {
+      const px = Math.round(feat.x), py = Math.round(feat.y);
+      if (px - half < 0 || px + half >= w || py - half < 0 || py + half >= h) continue;
+
+      // Extract reference patch + stats
+      let refMean = 0;
+      const patchSize = CFG.nccPatchSize * CFG.nccPatchSize;
+      for (let dy = -half; dy <= half; dy++)
+        for (let dx = -half; dx <= half; dx++)
+          refMean += prev[(py + dy) * w + (px + dx)];
+      refMean /= patchSize;
+
+      let refStd = 0;
+      for (let dy = -half; dy <= half; dy++)
+        for (let dx = -half; dx <= half; dx++) {
+          const v = prev[(py + dy) * w + (px + dx)] - refMean;
+          refStd += v * v;
         }
-        
-        class ARApp {
-            constructor() {
-                this.slam = new CustomSLAMEngine();
-                this.renderer = null;
-                this.debugRenderer = null;
-                this.isRunning = false;
-                this.lastPlaceTime = 0;
-                
-                this.initializeElements();
-                this.setupEventListeners();
+      refStd = Math.sqrt(refStd / patchSize);
+      if (refStd < 1) continue;
+
+      let bestNCC = -1, bestX = px, bestY = py;
+
+      // Search in neighborhood
+      const x0 = Math.max(half, px - sr), x1 = Math.min(w - half - 1, px + sr);
+      const y0 = Math.max(half, py - sr), y1 = Math.min(h - half - 1, py + sr);
+
+      // Coarse-to-fine: step 2 first, then refine
+      for (let step = 2; step >= 1; step--) {
+        const sx0 = step === 1 ? Math.max(x0, bestX - 2) : x0;
+        const sx1 = step === 1 ? Math.min(x1, bestX + 2) : x1;
+        const sy0 = step === 1 ? Math.max(y0, bestY - 2) : y0;
+        const sy1 = step === 1 ? Math.min(y1, bestY + 2) : y1;
+        const s = step === 1 ? 1 : 2;
+
+        for (let cy = sy0; cy <= sy1; cy += s) {
+          for (let cx = sx0; cx <= sx1; cx += s) {
+            let cMean = 0;
+            for (let dy = -half; dy <= half; dy++)
+              for (let dx = -half; dx <= half; dx++)
+                cMean += curr[(cy + dy) * w + (cx + dx)];
+            cMean /= patchSize;
+
+            let cStd = 0, cross = 0;
+            for (let dy = -half; dy <= half; dy++) {
+              for (let dx = -half; dx <= half; dx++) {
+                const rv = prev[(py + dy) * w + (px + dx)] - refMean;
+                const cv = curr[(cy + dy) * w + (cx + dx)] - cMean;
+                cross += rv * cv;
+                cStd += cv * cv;
+              }
             }
-            
-            initializeElements() {
-                this.video = document.getElementById('camera-feed');
-                this.arCanvas = document.getElementById('ar-canvas');
-                this.debugCanvas = document.getElementById('debug-canvas');
-                this.loading = document.getElementById('loading');
-                this.groundPlaneIndicator = document.getElementById('ground-plane-indicator');
-                
-                // Status elements
-                this.slamStatus = document.getElementById('slam-status');
-                this.featuresCount = document.getElementById('features-count');
-                this.groundPlaneStatus = document.getElementById('ground-plane-status');
-                this.fpsCounter = document.getElementById('fps-counter');
-                this.poseInfo = document.getElementById('pose-info');
-                
-                // Control buttons
-                this.startBtn = document.getElementById('start-btn');
-                this.calibrateBtn = document.getElementById('calibrate-btn');
-                this.resetBtn = document.getElementById('reset-btn');
-                this.placeObjectBtn = document.getElementById('place-object-btn');
-            }
-            
-            setupEventListeners() {
-                this.startBtn.addEventListener('click', () => this.startAR());
-                this.calibrateBtn.addEventListener('click', () => this.calibrate());
-                this.resetBtn.addEventListener('click', () => this.reset());
-                this.placeObjectBtn.addEventListener('click', () => this.placeObject());
-                
-                // Handle device orientation for mobile
-                if (window.DeviceOrientationEvent) {
-                    window.addEventListener('deviceorientation', (e) => this.handleDeviceOrientation(e));
-                }
-                
-                // Handle window resize
-                window.addEventListener('resize', () => this.handleResize());
-                
-                // Handle touch events for object placement
-                this.arCanvas.addEventListener('touchstart', (e) => this.handleTouch(e));
-                this.arCanvas.addEventListener('click', (e) => this.handleClick(e));
-            }
-            
-            async startAR() {
-                try {
-                    this.loading.style.display = 'flex';
-                    this.updateLoadingText('Solicitando acesso à câmera...');
-                    
-                    // Request camera access with fallback options
-                    let stream;
-                    try {
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                facingMode: 'environment',
-                                width: { ideal: 1280 },
-                                height: { ideal: 720 }
-                            }
-                        });
-                    } catch (e) {
-                        console.log('Tentando com configurações simplificadas...');
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            video: true
-                        });
-                    }
-                    
-                    this.video.srcObject = stream;
-                    
-                    this.updateLoadingText('Aguardando vídeo carregar...');
-                    
-                    // Wait for video to load with timeout
-                    await new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => {
-                            reject(new Error('Timeout ao carregar vídeo'));
-                        }, 10000);
-                        
-                        this.video.onloadedmetadata = () => {
-                            clearTimeout(timeout);
-                            console.log('Vídeo carregado:', this.video.videoWidth, 'x', this.video.videoHeight);
-                            this.video.play().then(() => {
-                                // Wait a bit more for the video to actually start playing
-                                setTimeout(resolve, 500);
-                            }).catch(reject);
-                        };
-                        
-                        this.video.onerror = () => {
-                            clearTimeout(timeout);
-                            reject(new Error('Erro ao carregar vídeo'));
-                        };
-                    });
-                    
-                    this.updateLoadingText('Inicializando SLAM Engine...');
-                    
-                    // Wait for video dimensions to be available
-                    let retries = 0;
-                    while ((this.video.videoWidth === 0 || this.video.videoHeight === 0) {
-                        if (retries++ >= 20) {
-                            throw new Error('Dimensões do vídeo não disponíveis após 20 tentativas');
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
-                    
-                    console.log('Inicializando SLAM com dimensões:', this.video.videoWidth, 'x', this.video.videoHeight);
-                    
-                    // Initialize SLAM
-                    await this.slam.initialize(this.video);
-                    
-                    this.updateLoadingText('Configurando renderizadores...');
-                    
-                    // Setup renderers
-                    this.setupRenderers();
-                    
-                    this.updateLoadingText('Iniciando sistema AR...');
-                    
-                    // Small delay to ensure everything is ready
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    // Start main loop
-                    this.isRunning = true;
-                    this.mainLoop();
-                    
-                    // Update UI
-                    this.startBtn.textContent = 'Parar AR';
-                    this.startBtn.onclick = () => this.stopAR();
-                    this.calibrateBtn.disabled = false;
-                    this.resetBtn.disabled = false;
-                    
-                    this.loading.style.display = 'none';
-                    
-                    console.log('Sistema AR iniciado com sucesso!');
-                    
-                } catch (error) {
-                    console.error('Erro ao iniciar AR:', error);
-                    this.showError(`Erro ao inicializar: ${error.message}`);
-                    this.loading.style.display = 'none';
-                    
-                    // Reset button state
-                    this.startBtn.textContent = 'Iniciar AR';
-                    this.startBtn.onclick = () => this.startAR();
-                }
-            }
-            
-            stopAR() {
-                this.isRunning = false;
-                
-                // Stop video stream
-                if (this.video.srcObject) {
-                    this.video.srcObject.getTracks().forEach(track => track.stop());
-                    this.video.srcObject = null;
-                }
-                
-                // Reset UI
-                this.startBtn.textContent = 'Iniciar AR';
-                this.startBtn.onclick = () => this.startAR();
-                this.calibrateBtn.disabled = true;
-                this.resetBtn.disabled = true;
-                this.placeObjectBtn.disabled = true;
-                
-                // Clear canvases
-                if (this.renderer) {
-                    this.renderer.clear();
-                }
-                if (this.debugRenderer) {
-                    this.debugRenderer.clear();
-                }
-                
-                this.updateStatus('Parado', 0, 'N/A', 0, 'N/A');
-            }
-            
-            setupRenderers() {
-                // Setup main AR renderer
-                this.arCanvas.width = this.video.videoWidth;
-                this.arCanvas.height = this.video.videoHeight;
-                this.renderer = new ARRenderer(this.arCanvas);
-                
-                // Setup debug renderer
-                this.debugRenderer = new DebugRenderer(this.debugCanvas);
-                
-                // Handle canvas resize
-                this.handleResize();
-            }
-            
-            handleResize() {
-                if (!this.video.videoWidth || !this.video.videoHeight) return;
-                
-                const videoAspect = this.video.videoWidth / this.video.videoHeight;
-                const windowAspect = window.innerWidth / window.innerHeight;
-                
-                if (videoAspect > windowAspect) {
-                    this.arCanvas.style.width = '100%';
-                    this.arCanvas.style.height = 'auto';
-                } else {
-                    this.arCanvas.style.width = 'auto';
-                    this.arCanvas.style.height = '100%';
-                }
-            }
-            
-            mainLoop() {
-                if (!this.isRunning) return;
-                
-                try {
-                    const slamResult = this.slam.processFrame();
-                    
-                    if (slamResult) {
-                        // Improved status reporting
-                        let trackingStatus;
-                        switch (slamResult.trackingState) {
-                            case 'TRACKING':
-                                trackingStatus = 'Rastreando (' + slamResult.features.length + ' pontos)';
-                                break;
-                            case 'NOT_TRACKING':
-                                trackingStatus = 'Procurando pontos...';
-                                break;
-                            case 'NOT_INITIALIZED':
-                                trackingStatus = 'Inicializando...';
-                                break;
-                            default:
-                                trackingStatus = slamResult.trackingState;
-                        }
-                        
-                        let groundPlaneStatus = 'Procurando';
-                        if (slamResult.groundPlane) {
-                            groundPlaneStatus = 'Detectado (' + 
-                                Math.round(slamResult.groundPlane.confidence * 100) + '% confiança)';
-                        }
-                        
-                        this.updateStatus(
-                            trackingStatus,
-                            slamResult.features.length,
-                            groundPlaneStatus,
-                            slamResult.fps,
-                            this.formatPose(slamResult.pose)
-                        );
-                        
-                        // Improved ground plane indicator
-                        this.updateGroundPlaneIndicator(slamResult);
-                        
-                        // Render AR content
-                        this.render(slamResult);
-                    }
-                    
-                } catch (error) {
-                    console.error('Main loop error:', error);
-                    this.updateStatus('ERRO', 0, 'Erro', 0, 'N/A');
-                }
-                
-                requestAnimationFrame(() => this.mainLoop());
-            }
-            
-            updateGroundPlaneIndicator(slamResult) {
-                const indicator = this.groundPlaneIndicator;
-                
-                if (slamResult.groundPlane) {
-                    indicator.classList.add('detected');
-                    this.placeObjectBtn.disabled = false;
-                    
-                    // Position indicator at ground plane center
-                    const [x, y] = slamResult.groundPlane.center;
-                    indicator.style.left = x + 'px';
-                    indicator.style.top = y + 'px';
-                    
-                    // Adjust size based on confidence
-                    const size = 80 + (slamResult.groundPlane.confidence * 40);
-                    indicator.style.width = size + 'px';
-                    indicator.style.height = size + 'px';
-                    
-                } else {
-                    indicator.classList.remove('detected');
-                    this.placeObjectBtn.disabled = true;
-                    
-                    // Center indicator when no plane detected
-                    indicator.style.left = '50%';
-                    indicator.style.top = '50%';
-                    indicator.style.width = '100px';
-                    indicator.style.height = '100px';
-                }
-            }
-            
-            render(slamResult) {
-                // Clear canvases
-                this.renderer.clear();
-                
-                // Draw features
-                this.renderer.drawFeatures(slamResult.features);
-                
-                // Draw ground plane
-                if (slamResult.groundPlane) {
-                    this.renderer.drawGroundPlane(slamResult.groundPlane);
-                }
-                
-                // Draw AR objects
-                this.renderer.drawARObjects(this.slam.arObjects, slamResult.groundPlane);
-                
-                // Draw pose info
-                this.renderer.drawPoseInfo(slamResult.pose);
-                
-                // Update debug view
-                this.debugRenderer.drawFeatureDistribution(
-                    slamResult.features,
-                    this.video.videoWidth,
-                    this.video.videoHeight
-                );
-            }
-            
-            calibrate() {
-                if (!this.isRunning) return;
-                
-                this.updateLoadingText('Calibrando sistema...');
-                this.loading.style.display = 'flex';
-                
-                // Simulate calibration process
-                setTimeout(() => {
-                    // Reset tracking and improve parameters
-                    this.slam.cornerThreshold *= 0.8;
-                    this.slam.maxFeatures = Math.min(this.slam.maxFeatures + 50, 800);
-                    
-                    this.loading.style.display = 'none';
-                    this.showSuccess('Calibração concluída!');
-                }, 2000);
-            }
-            
-            reset() {
-                if (!this.isRunning) return;
-                
-                this.slam.reset();
-                this.renderer.clear();
-                this.debugRenderer.clear();
-                
-                this.updateStatus('Reinicializando', 0, 'Procurando', 0, 'N/A');
-                this.placeObjectBtn.disabled = true;
-                this.groundPlaneIndicator.classList.remove('detected');
-                
-                this.showSuccess('Sistema reiniciado!');
-            }
-            
-            placeObject() {
-                if (!this.slam.groundPlane) return;
-                
-                const currentTime = Date.now();
-                if (currentTime - this.lastPlaceTime < 1000) return; // Throttle placement
-                
-                this.lastPlaceTime = currentTime;
-                
-                // Generate random position on ground plane
-                const x = (Math.random() - 0.5) * 4;
-                const z = (Math.random() - 0.5) * 4;
-                const y = 0;
-                
-                const objectTypes = ['cube', 'sphere'];
-                const type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
-                
-                const object = this.slam.addARObject(x, y, z, type);
-                
-                // Visual feedback
-                this.showSuccess(`Objeto ${type} colocado!`);
-                
-                // Animate placement
-                this.animateObjectPlacement(object);
-            }
-            
-            animateObjectPlacement(object) {
-                const originalY = object.position[1];
-                const animationDuration = 500;
-                const startTime = Date.now();
-                
-                const animate = () => {
-                    const elapsed = Date.now() - startTime;
-                    const progress = Math.min(elapsed / animationDuration, 1);
-                    
-                    // Bounce animation
-                    const bounce = Math.sin(progress * Math.PI);
-                    object.position[1] = originalY + bounce * 0.5;
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else {
-                        object.position[1] = originalY;
-                    }
-                };
-                
-                animate();
-            }
-            
-            handleTouch(event) {
-                event.preventDefault();
-                
-                if (!this.slam.groundPlane) return;
-                
-                const touch = event.touches[0];
-                const rect = this.arCanvas.getBoundingClientRect();
-                const x = touch.clientX - rect.left;
-                const y = touch.clientY - rect.top;
-                
-                this.placeObjectAt(x, y);
-            }
-            
-            handleClick(event) {
-                if (!this.slam.groundPlane) return;
-                
-                const rect = this.arCanvas.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-                
-                this.placeObjectAt(x, y);
-            }
-            
-            placeObjectAt(screenX, screenY) {
-                if (!this.slam.groundPlane) return;
-                
-                // Convert screen coordinates to world coordinates (simplified)
-                const centerX = this.slam.groundPlane.center[0];
-                const centerY = this.slam.groundPlane.center[1];
-                
-                const worldX = (screenX - centerX) / 100;
-                const worldZ = (screenY - centerY) / 100;
-                
-                const object = this.slam.addARObject(worldX, 0, worldZ, 'cube');
-                this.animateObjectPlacement(object);
-                
-                this.showSuccess('Objeto colocado!');
-            }
-            
-            handleDeviceOrientation(event) {
-                if (!this.slam.isInitialized) return;
-                
-                // Use device orientation to improve tracking
-                const alpha = event.alpha * Math.PI / 180; // Z axis
-                const beta = event.beta * Math.PI / 180;   // X axis
-                const gamma = event.gamma * Math.PI / 180; // Y axis
-                
-                // Update SLAM with orientation data
-                this.slam.currentPose.rotation = [beta, alpha, gamma];
-            }
-            
-            updateStatus(slamState, featuresCount, groundPlaneState, fps, pose) {
-                this.slamStatus.textContent = slamState;
-                this.featuresCount.textContent = featuresCount;
-                this.groundPlaneStatus.textContent = groundPlaneState;
-                this.fpsCounter.textContent = fps;
-                this.poseInfo.textContent = pose;
-                
-                // Update status colors
-                this.slamStatus.style.color = slamState.includes('Rastreando') ? '#00ff88' : '#ff8800';
-                this.groundPlaneStatus.style.color = groundPlaneState.includes('Detectado') ? '#00ff88' : '#ff8800';
-                
-                // Add/remove tracking animation
-                if (slamState.includes('Rastreando')) {
-                    this.slamStatus.classList.add('tracking');
-                } else {
-                    this.slamStatus.classList.remove('tracking');
-                }
-            }
-            
-            formatPose(pose) {
-                return `(${pose.position[0].toFixed(2)}, ${pose.position[1].toFixed(2)}, ${pose.position[2].toFixed(2)})`;
-            }
-            
-            updateLoadingText(text) {
-                const loadingDiv = this.loading.querySelector('div:last-child');
-                if (loadingDiv) {
-                    loadingDiv.textContent = text;
-                }
-            }
-            
-            showError(message) {
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error';
-                errorDiv.textContent = message;
-                document.body.appendChild(errorDiv);
-                
-                setTimeout(() => {
-                    if (errorDiv.parentNode) {
-                        errorDiv.parentNode.removeChild(errorDiv);
-                    }
-                }, 5000);
-            }
-            
-            showSuccess(message) {
-                const successDiv = document.createElement('div');
-                successDiv.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(0, 255, 136, 0.9);
-                    color: white;
-                    padding: 15px 30px;
-                    border-radius: 25px;
-                    font-weight: bold;
-                    z-index: 1000;
-                    animation: fadeInOut 2s ease-in-out;
-                `;
-                successDiv.textContent = message;
-                document.body.appendChild(successDiv);
-                
-                setTimeout(() => {
-                    if (successDiv.parentNode) {
-                        successDiv.parentNode.removeChild(successDiv);
-                    }
-                }, 2000);
-            }
+            cStd = Math.sqrt(cStd / patchSize);
+            if (cStd < 1) continue;
+
+            const ncc = cross / (patchSize * refStd * cStd);
+            if (ncc > bestNCC) { bestNCC = ncc; bestX = cx; bestY = cy; }
+          }
         }
-        
-        // Initialize application
-        let app;
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM carregado, inicializando aplicação...');
-            
-            app = new ARApp();
-            
-            // Check for required APIs
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                console.error('MediaDevices não suportado');
-                app.showError('Seu navegador não suporta acesso à câmera');
-                return;
-            }
-            
-            // Check for WebGL support
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-            if (!gl) {
-                console.error('WebGL não suportado');
-                app.showError('Seu navegador não suporta WebGL');
-                return;
-            }
-            
-            // Hide loading screen after DOM is ready
-            setTimeout(() => {
-                const loading = document.getElementById('loading');
-                if (loading) {
-                    loading.style.display = 'none';
-                }
-            }, 1000);
-            
-            console.log('Custom SLAM AR System inicializado com sucesso');
+      }
+
+      if (bestNCC > CFG.nccThreshold) {
+        tracked.push({
+          x: bestX, y: bestY,
+          px: feat.x, py: feat.y,
+          dx: bestX - feat.x, dy: bestY - feat.y,
+          ncc: bestNCC, score: feat.score
         });
-        
-        // Handle page visibility changes
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && app && app.isRunning) {
-                app.stopAR();
-            }
-        });
-        
-        // Handle orientation changes
-        window.addEventListener('orientationchange', () => {
-            if (app && app.isRunning) {
-                setTimeout(() => {
-                    app.handleResize();
-                }, 100);
-            }
-        });
-    </script>
+      }
+    }
+    return tracked;
+  }
+}
+
+// =====================================================
+//  POSE ESTIMATOR
+// =====================================================
+class PoseEstimator {
+  constructor() {
+    this.rotation = { x: 0, y: 0, z: 0 };
+    this.translation = { x: 0, y: 0, z: 0 };
+    this.gyroData = null;
+    this.smoothTx = 0; this.smoothTy = 0; this.smoothTz = 0;
+  }
+
+  setGyro(alpha, beta, gamma) {
+    this.gyroData = { alpha, beta, gamma };
+  }
+
+  estimate(tracked) {
+    if (tracked.length < 4) return;
+
+    // Compute median flow
+    const dxs = tracked.map(t => t.dx).sort((a,b) => a - b);
+    const dys = tracked.map(t => t.dy).sort((a,b) => a - b);
+    const mid = Math.floor(tracked.length / 2);
+    const medDx = dxs[mid], medDy = dys[mid];
+
+    // RANSAC-lite: remove outliers
+    const inliers = tracked.filter(t => {
+      const ex = Math.abs(t.dx - medDx), ey = Math.abs(t.dy - medDy);
+      return ex < 8 && ey < 8;
+    });
+
+    if (inliers.length < 3) return;
+
+    // Average inlier flow
+    let avgDx = 0, avgDy = 0;
+    for (const t of inliers) { avgDx += t.dx; avgDy += t.dy; }
+    avgDx /= inliers.length;
+    avgDy /= inliers.length;
+
+    // Flow divergence (scale change)
+    let divergence = 0;
+    const cx = CFG.processWidth / 2, cy = CFG.processHeight / 2;
+    for (const t of inliers) {
+      const rx = t.px - cx, ry = t.py - cy;
+      const len = Math.sqrt(rx * rx + ry * ry);
+      if (len > 5) {
+        const dot = (t.dx * rx + t.dy * ry) / len;
+        divergence += dot;
+      }
+    }
+    divergence /= inliers.length;
+
+    // Update translation estimate (smoothed)
+    const alpha = 0.3;
+    this.smoothTx += (-avgDx / CFG.focalLength) * alpha;
+    this.smoothTy += (-avgDy / CFG.focalLength) * alpha;
+    this.smoothTz += (divergence * 0.01) * alpha;
+
+    this.translation.x = this.smoothTx;
+    this.translation.y = this.smoothTy;
+    this.translation.z = this.smoothTz;
+
+    // Rotation from flow
+    this.rotation.y += avgDx * 0.002;
+    this.rotation.x -= avgDy * 0.002;
+
+    // Fuse with gyro if available
+    if (this.gyroData) {
+      const g = this.gyroData;
+      this.rotation.x = this.rotation.x * 0.7 + (g.beta * Math.PI / 180) * 0.3;
+      this.rotation.y = this.rotation.y * 0.7 + (g.gamma * Math.PI / 180) * 0.3;
+    }
+
+    return { inlierCount: inliers.length };
+  }
+}
+
+// =====================================================
+//  GROUND PLANE DETECTOR
+// =====================================================
+class GroundPlaneDetector {
+  constructor() {
+    this.stabilityCounter = 0;
+    this.detected = false;
+    this.planeY = 0;
+    this.planeNormal = { x: 0, y: 1, z: 0 };
+    this.history = [];
+  }
+
+  reset() {
+    this.stabilityCounter = 0;
+    this.detected = false;
+    this.history = [];
+  }
+
+  analyze(tracked, pose) {
+    if (tracked.length < CFG.planeMinFeatures) {
+      this.stabilityCounter = Math.max(0, this.stabilityCounter - 2);
+      return;
+    }
+
+    // Cluster features by y-coordinate
+    const ys = tracked.map(t => t.y).sort((a, b) => a - b);
+    const median = ys[Math.floor(ys.length / 2)];
+
+    // Features near the lower half (ground candidates)
+    const groundFeatures = tracked.filter(t => t.y > median);
+
+    if (groundFeatures.length < 8) {
+      this.stabilityCounter = Math.max(0, this.stabilityCounter - 1);
+      return;
+    }
+
+    // Check horizontal flow coherence (ground features should move similarly)
+    const flows = groundFeatures.map(t => ({ dx: t.dx, dy: t.dy }));
+    let flowVarX = 0, flowVarY = 0;
+    let meanFx = 0, meanFy = 0;
+    for (const f of flows) { meanFx += f.dx; meanFy += f.dy; }
+    meanFx /= flows.length; meanFy /= flows.length;
+    for (const f of flows) {
+      flowVarX += (f.dx - meanFx) ** 2;
+      flowVarY += (f.dy - meanFy) ** 2;
+    }
+    flowVarX = Math.sqrt(flowVarX / flows.length);
+    flowVarY = Math.sqrt(flowVarY / flows.length);
+
+    // Low variance = coherent motion = likely planar surface
+    const coherence = 1.0 / (1.0 + flowVarX + flowVarY);
+
+    // Height variance of ground features
+    const groundYs = groundFeatures.map(t => t.y);
+    const gMean = groundYs.reduce((a, b) => a + b, 0) / groundYs.length;
+    const gVar = Math.sqrt(groundYs.reduce((a, b) => a + (b - gMean) ** 2, 0) / groundYs.length);
+    const normalized = gVar / CFG.processHeight;
+
+    // Temporal stability
+    this.history.push({ coherence, variance: normalized, time: Date.now() });
+    if (this.history.length > 30) this.history.shift();
+
+    const isPlaneCandidate = coherence > 0.15 && normalized < CFG.planeHeightVariance;
+
+    if (isPlaneCandidate) {
+      this.stabilityCounter = Math.min(this.stabilityCounter + 1, CFG.planeStabilityFrames + 10);
+    } else {
+      this.stabilityCounter = Math.max(0, this.stabilityCounter - 1);
+    }
+
+    if (this.stabilityCounter >= CFG.planeStabilityFrames && !this.detected) {
+      this.detected = true;
+      this.planeY = gMean / CFG.processHeight;
+    }
+
+    return {
+      coherence,
+      variance: normalized,
+      stability: this.stabilityCounter / CFG.planeStabilityFrames,
+      groundFeatureCount: groundFeatures.length
+    };
+  }
+}
+
+// =====================================================
+//  3D MAP
+// =====================================================
+class SLAMMap {
+  constructor() {
+    this.points = [];
+    this.maxPoints = 1000;
+  }
+
+  addPoints(features, pose) {
+    for (const f of features) {
+      if (this.points.length >= this.maxPoints) {
+        this.points.shift();
+      }
+      const z = 2.0 + Math.random() * 3;
+      this.points.push({
+        x: (f.x - CFG.processWidth / 2) / CFG.focalLength * z + pose.translation.x,
+        y: (f.y - CFG.processHeight / 2) / CFG.focalLength * z + pose.translation.y,
+        z: z + pose.translation.z,
+        life: 60
+      });
+    }
+  }
+
+  update() {
+    this.points = this.points.filter(p => {
+      p.life--;
+      return p.life > 0;
+    });
+  }
+
+  reset() { this.points = []; }
+}
+
+// =====================================================
+//  AR RENDERER
+// =====================================================
+class ARRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.objects = [];
+    this.debugMode = false;
+  }
+
+  project(x3d, y3d, z3d, pose, canvasW, canvasH) {
+    // Apply inverse pose
+    const rx = x3d - pose.translation.x;
+    const ry = y3d - pose.translation.y;
+    const rz = z3d - pose.translation.z;
+
+    if (rz <= 0.1) return null;
+
+    // Simple perspective projection
+    const cosY = Math.cos(pose.rotation.y), sinY = Math.sin(pose.rotation.y);
+    const cosX = Math.cos(pose.rotation.x), sinX = Math.sin(pose.rotation.x);
+
+    const x1 = rx * cosY - rz * sinY;
+    const z1 = rx * sinY + rz * cosY;
+    const y1 = ry * cosX - z1 * sinX;
+    const z2 = ry * sinX + z1 * cosX;
+
+    if (z2 <= 0.1) return null;
+
+    const sx = (x1 * CFG.focalLength) / z2 + canvasW / 2;
+    const sy = (y1 * CFG.focalLength) / z2 + canvasH / 2;
+
+    return { x: sx, y: sy, scale: CFG.focalLength / z2 };
+  }
+
+  addObject(screenX, screenY, canvasW, canvasH, planeY, pose) {
+    // Place on detected ground plane
+    const worldX = (screenX - canvasW / 2) / CFG.focalLength * 3 + pose.translation.x;
+    const worldY = planeY * 2 + pose.translation.y;
+    const worldZ = 3 + pose.translation.z;
+
+    const types = ['cube', 'sphere', 'pyramid', 'diamond'];
+    const colors = ['#00e5a0', '#00b8ff', '#ff6b35', '#ff3366', '#a855f7', '#eab308'];
+
+    this.objects.push({
+      x: worldX, y: worldY, z: worldZ,
+      type: types[Math.floor(Math.random() * types.length)],
+      color: colors[Math.floor(Math.random() * colors.length)],
+      spawnTime: Date.now(),
+      rotation: 0,
+      scale: 0
+    });
+  }
+
+  drawFeatures(features, tracked) {
+    const ctx = this.ctx;
+    const cw = this.canvas.width, ch = this.canvas.height;
+    const sx = cw / CFG.processWidth, sy = ch / CFG.processHeight;
+
+    // Draw features
+    for (const f of features) {
+      ctx.beginPath();
+      ctx.arc(f.x * sx, f.y * sy, 3, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0,229,160,0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Draw tracks
+    for (const t of tracked) {
+      ctx.beginPath();
+      ctx.moveTo(t.px * sx, t.py * sy);
+      ctx.lineTo(t.x * sx, t.y * sy);
+      ctx.strokeStyle = `rgba(0,184,255,${t.ncc})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(t.x * sx, t.y * sy, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#00b8ff';
+      ctx.fill();
+    }
+  }
+
+  drawObjects(pose) {
+    const ctx = this.ctx;
+    const cw = this.canvas.width, ch = this.canvas.height;
+    const now = Date.now();
+
+    // Sort by z for painter's algorithm
+    const sorted = [...this.objects].sort((a, b) => b.z - a.z);
+
+    for (const obj of sorted) {
+      const p = this.project(obj.x, obj.y, obj.z, pose, cw, ch);
+      if (!p) continue;
+
+      const age = (now - obj.spawnTime) / 1000;
+      obj.scale = Math.min(1, age * 3); // Smooth entry
+      obj.rotation += 0.02;
+
+      const size = 30 * p.scale * obj.scale;
+      if (size < 2 || p.x < -100 || p.x > cw + 100 || p.y < -100 || p.y > ch + 100) continue;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.globalAlpha = Math.min(1, obj.scale);
+
+      // Shadow
+      ctx.shadowColor = obj.color;
+      ctx.shadowBlur = size * 0.6;
+
+      // Ground shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(0, size * 0.8, size * 0.6, size * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.rotate(obj.rotation);
+
+      switch (obj.type) {
+        case 'cube':
+          this.drawCube(ctx, size, obj.color);
+          break;
+        case 'sphere':
+          this.drawSphere(ctx, size, obj.color);
+          break;
+        case 'pyramid':
+          this.drawPyramid(ctx, size, obj.color);
+          break;
+        case 'diamond':
+          this.drawDiamond(ctx, size, obj.color);
+          break;
+      }
+      ctx.restore();
+    }
+  }
+
+  drawCube(ctx, s, color) {
+    const h = s * 0.5;
+    // Front face
+    ctx.fillStyle = color;
+    ctx.globalAlpha *= 0.9;
+    ctx.fillRect(-h, -h, s, s);
+    // Top face
+    ctx.fillStyle = this.lighten(color, 30);
+    ctx.beginPath();
+    ctx.moveTo(-h, -h);
+    ctx.lineTo(-h + h * 0.4, -h - h * 0.4);
+    ctx.lineTo(h + h * 0.4, -h - h * 0.4);
+    ctx.lineTo(h, -h);
+    ctx.fill();
+    // Right face
+    ctx.fillStyle = this.darken(color, 30);
+    ctx.beginPath();
+    ctx.moveTo(h, -h);
+    ctx.lineTo(h + h * 0.4, -h - h * 0.4);
+    ctx.lineTo(h + h * 0.4, h - h * 0.4);
+    ctx.lineTo(h, h);
+    ctx.fill();
+    // Edges
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-h, -h, s, s);
+  }
+
+  drawSphere(ctx, s, color) {
+    const r = s * 0.5;
+    const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+    grad.addColorStop(0, this.lighten(color, 50));
+    grad.addColorStop(0.7, color);
+    grad.addColorStop(1, this.darken(color, 40));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    // Specular highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.25, -r * 0.3, r * 0.2, r * 0.12, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawPyramid(ctx, s, color) {
+    const h = s * 0.7;
+    // Front face
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, -h);
+    ctx.lineTo(-s * 0.5, h * 0.5);
+    ctx.lineTo(s * 0.5, h * 0.5);
+    ctx.fill();
+    // Right face
+    ctx.fillStyle = this.darken(color, 25);
+    ctx.beginPath();
+    ctx.moveTo(0, -h);
+    ctx.lineTo(s * 0.5, h * 0.5);
+    ctx.lineTo(s * 0.2, h * 0.6);
+    ctx.fill();
+    // Edge
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -h); ctx.lineTo(-s * 0.5, h * 0.5);
+    ctx.moveTo(0, -h); ctx.lineTo(s * 0.5, h * 0.5);
+    ctx.stroke();
+  }
+
+  drawDiamond(ctx, s, color) {
+    const h = s * 0.7, w = s * 0.4;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, -h); ctx.lineTo(w, 0); ctx.lineTo(0, h); ctx.lineTo(-w, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = this.lighten(color, 25);
+    ctx.beginPath();
+    ctx.moveTo(0, -h); ctx.lineTo(-w, 0); ctx.lineTo(0, 0);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -h); ctx.lineTo(w, 0); ctx.lineTo(0, h); ctx.lineTo(-w, 0); ctx.closePath();
+    ctx.stroke();
+  }
+
+  lighten(hex, pct) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${Math.min(255, r + pct)},${Math.min(255, g + pct)},${Math.min(255, b + pct)})`;
+  }
+
+  darken(hex, pct) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${Math.max(0, r - pct)},${Math.max(0, g - pct)},${Math.max(0, b - pct)})`;
+  }
+
+  drawGroundGrid(pose, planeY, canvasW, canvasH) {
+    const ctx = this.ctx;
+    ctx.strokeStyle = 'rgba(0,229,160,0.08)';
+    ctx.lineWidth = 1;
+
+    const gridSize = 8, spacing = 0.5;
+    for (let i = -gridSize; i <= gridSize; i++) {
+      for (let pass = 0; pass < 2; pass++) {
+        const startX = pass === 0 ? i * spacing : -gridSize * spacing;
+        const startZ = pass === 0 ? -gridSize * spacing : i * spacing;
+        const endX = pass === 0 ? i * spacing : gridSize * spacing;
+        const endZ = pass === 0 ? gridSize * spacing : i * spacing;
+
+        const p1 = this.project(startX, planeY, startZ + 3, pose, canvasW, canvasH);
+        const p2 = this.project(endX, planeY, endZ + 3, pose, canvasW, canvasH);
+        if (p1 && p2) {
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+// =====================================================
+//  MAIN SLAM AR SYSTEM
+// =====================================================
+class SLAMARSystem {
+  constructor() {
+    this.video = document.getElementById('videoEl');
+    this.canvas = document.getElementById('arCanvas');
+    this.ctx = this.canvas.getContext('2d');
+
+    this.processCanvas = document.createElement('canvas');
+    this.processCanvas.width = CFG.processWidth;
+    this.processCanvas.height = CFG.processHeight;
+    this.processCtx = this.processCanvas.getContext('2d', { willReadFrequently: true });
+
+    this.imgProc = new ImageProcessor(CFG.processWidth, CFG.processHeight);
+    this.harris = new HarrisDetector(this.imgProc);
+    this.optflow = new OpticalFlowNCC(this.imgProc);
+    this.pose = new PoseEstimator();
+    this.plane = new GroundPlaneDetector();
+    this.map = new SLAMMap();
+    this.renderer = new ARRenderer(this.canvas);
+
+    this.features = [];
+    this.tracked = [];
+    this.running = false;
+    this.frameCount = 0;
+    this.fps = 0;
+    this.lastFpsTime = 0;
+    this.fpsFrames = 0;
+
+    this.setupUI();
+    this.setupGyro();
+  }
+
+  setupUI() {
+    document.getElementById('startBtn').addEventListener('click', () => this.start());
+    document.getElementById('btnDebug').addEventListener('click', () => this.toggleDebug());
+    document.getElementById('btnCalibrate').addEventListener('click', () => this.calibrate());
+    document.getElementById('btnReset').addEventListener('click', () => this.reset());
+
+    this.canvas.addEventListener('click', (e) => this.onTap(e));
+    this.canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      this.onTap({ clientX: t.clientX, clientY: t.clientY });
+    }, { passive: false });
+
+    window.addEventListener('resize', () => this.resize());
+  }
+
+  setupGyro() {
+    if (window.DeviceOrientationEvent) {
+      // Request permission on iOS 13+
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        document.getElementById('startBtn').addEventListener('click', () => {
+          DeviceOrientationEvent.requestPermission().then(r => {
+            if (r === 'granted') this.bindGyro();
+          }).catch(() => {});
+        }, { once: true });
+      } else {
+        this.bindGyro();
+      }
+    }
+  }
+
+  bindGyro() {
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.alpha !== null) {
+        this.pose.setGyro(e.alpha, e.beta, e.gamma);
+        document.getElementById('dbgGyro').textContent =
+          `${e.beta?.toFixed(0)},${e.gamma?.toFixed(0)}`;
+      }
+    });
+  }
+
+  async start() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+      });
+      this.video.srcObject = stream;
+      await this.video.play();
+
+      document.getElementById('startScreen').classList.add('hidden');
+      this.resize();
+      this.running = true;
+
+      // Show instructions briefly
+      const inst = document.getElementById('instructions');
+      inst.classList.remove('hidden');
+      setTimeout(() => inst.classList.add('hidden'), 4000);
+
+      document.getElementById('statusText').textContent = 'Buscando features...';
+      this.lastFpsTime = performance.now();
+      this.loop();
+    } catch (err) {
+      alert('Erro ao acessar a câmera: ' + err.message);
+    }
+  }
+
+  resize() {
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+
+  toggleDebug() {
+    this.renderer.debugMode = !this.renderer.debugMode;
+    document.getElementById('debugPanel').classList.toggle('show');
+    document.getElementById('btnDebug').classList.toggle('active');
+  }
+
+  calibrate() {
+    // Auto-calibrate based on current feature distribution
+    const btn = document.getElementById('btnCalibrate');
+    btn.textContent = 'Calibrando...';
+    btn.classList.add('active');
+
+    // Adjust thresholds based on feature count
+    if (this.features.length < 20) {
+      CFG.harrisThreshold = Math.max(20, CFG.harrisThreshold - 15);
+    } else if (this.features.length > 150) {
+      CFG.harrisThreshold = Math.min(200, CFG.harrisThreshold + 15);
+    }
+
+    CFG.nccSearchRadius = Math.min(32, Math.max(12, CFG.nccSearchRadius));
+
+    setTimeout(() => {
+      btn.textContent = 'Calibrar';
+      btn.classList.remove('active');
+    }, 1500);
+  }
+
+  reset() {
+    this.features = [];
+    this.tracked = [];
+    this.pose = new PoseEstimator();
+    this.plane = new GroundPlaneDetector();
+    this.map.reset();
+    this.renderer.objects = [];
+    this.frameCount = 0;
+    CFG.harrisThreshold = 80;
+
+    document.getElementById('statusPill').classList.remove('detected');
+    document.getElementById('statusText').textContent = 'Buscando features...';
+    document.getElementById('planeIndicator').classList.remove('show');
+    document.getElementById('objectCount').style.display = 'none';
+    document.getElementById('crosshair').classList.remove('active');
+  }
+
+  onTap(e) {
+    if (!this.plane.detected) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    this.renderer.addObject(x, y, this.canvas.width, this.canvas.height, this.plane.planeY, this.pose);
+
+    const countEl = document.getElementById('objectCount');
+    countEl.style.display = 'block';
+    document.getElementById('objCountVal').textContent = this.renderer.objects.length;
+  }
+
+  loop() {
+    if (!this.running) return;
+
+    const now = performance.now();
+
+    // FPS counter
+    this.fpsFrames++;
+    if (now - this.lastFpsTime >= 1000) {
+      this.fps = this.fpsFrames;
+      this.fpsFrames = 0;
+      this.lastFpsTime = now;
+      document.getElementById('fpsBadge').textContent = this.fps + ' FPS';
+    }
+
+    // Draw video to canvas
+    this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+
+    // Process at lower resolution
+    this.processCtx.drawImage(this.video, 0, 0, CFG.processWidth, CFG.processHeight);
+    const imageData = this.processCtx.getImageData(0, 0, CFG.processWidth, CFG.processHeight);
+
+    // Swap previous frame
+    this.imgProc.swapBuffers();
+    this.imgProc.rgbToGray(imageData);
+    this.imgProc.computeGradients();
+
+    // Only process every other frame for performance
+    if (this.frameCount % 2 === 0) {
+      // Detect features
+      this.features = this.harris.detect();
+
+      // Track features from previous frame
+      if (this.frameCount > 2) {
+        this.tracked = this.optflow.track(this.features);
+
+        // Estimate pose
+        const poseResult = this.pose.estimate(this.tracked);
+
+        // Ground plane detection
+        const planeResult = this.plane.analyze(this.tracked, this.pose);
+
+        // Update map
+        if (this.tracked.length > 5) {
+          const sample = this.tracked.filter((_, i) => i % 5 === 0);
+          this.map.addPoints(sample, this.pose);
+        }
+
+        // Update UI
+        this.updateStatus(planeResult);
+        this.updateDebug(planeResult);
+      }
+    }
+
+    this.map.update();
+
+    // Render AR overlays
+    if (this.plane.detected) {
+      this.renderer.drawGroundGrid(this.pose, this.plane.planeY, this.canvas.width, this.canvas.height);
+    }
+    this.renderer.drawObjects(this.pose);
+
+    // Debug visualization
+    if (this.renderer.debugMode) {
+      this.renderer.drawFeatures(this.features, this.tracked);
+    }
+
+    this.frameCount++;
+    requestAnimationFrame(() => this.loop());
+  }
+
+  updateStatus(planeResult) {
+    const pill = document.getElementById('statusPill');
+    const text = document.getElementById('statusText');
+    const indicator = document.getElementById('planeIndicator');
+    const cross = document.getElementById('crosshair');
+
+    if (this.plane.detected) {
+      pill.classList.add('detected');
+      text.textContent = 'Plano detectado • Toque para colocar';
+      indicator.classList.add('show');
+      cross.classList.add('active');
+      setTimeout(() => indicator.classList.remove('show'), 3000);
+    } else if (this.features.length > 10) {
+      text.textContent = `Rastreando ${this.tracked.length} features...`;
+      cross.classList.remove('active');
+    } else {
+      text.textContent = 'Buscando features...';
+    }
+  }
+
+  updateDebug(planeResult) {
+    document.getElementById('dbgFeatures').textContent = this.features.length;
+    document.getElementById('dbgTracked').textContent = this.tracked.length;
+    document.getElementById('dbgPose').textContent =
+      `${this.pose.translation.x.toFixed(2)},${this.pose.translation.y.toFixed(2)},${this.pose.translation.z.toFixed(2)}`;
+    document.getElementById('dbgPlane').textContent = this.plane.detected ? 'YES' :
+      `${(this.plane.stabilityCounter / CFG.planeStabilityFrames * 100).toFixed(0)}%`;
+    document.getElementById('dbgMap').textContent = this.map.points.length;
+  }
+}
+
+// Boot
+const app = new SLAMARSystem();
+</script>
 </body>
 </html>
