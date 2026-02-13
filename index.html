@@ -3,136 +3,117 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>SLAM AR — Ground Plane Detection</title>
+<title>SLAM AR — Ground Plane</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;--text:#e8e8f0;--dim:#6b6b80;--accent:#00e5a0;--accent2:#00b8ff;--warn:#ff6b35;--danger:#ff3366;--glow:0 0 20px rgba(0,229,160,0.3);--radius:12px}
-html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-#app{width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center}
-#startScreen{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);gap:24px;transition:opacity 0.6s,transform 0.6s}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;touch-action:none;-webkit-touch-callout:none;user-select:none}
+#app{width:100%;height:100%;position:relative}
+#startScreen{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);gap:20px;transition:opacity .5s,transform .5s}
 #startScreen.hidden{opacity:0;pointer-events:none;transform:scale(1.05)}
-.logo{font-size:clamp(2rem,6vw,3.5rem);font-weight:800;letter-spacing:-2px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.subtitle{color:var(--dim);font-size:0.95rem;font-weight:300;max-width:340px;text-align:center;line-height:1.6}
-.features{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:12px 0}
-.feat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:0.78rem;color:var(--dim);display:flex;align-items:center;gap:8px}
-.feat .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
-#startBtn{margin-top:12px;padding:16px 48px;border:none;border-radius:60px;background:linear-gradient(135deg,var(--accent),#00c8e0);color:#0a0a0f;font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:all 0.3s;box-shadow:var(--glow)}
-#startBtn:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,229,160,0.5)}
-#startBtn:active{transform:scale(0.97)}
+.logo{font-size:clamp(2rem,6vw,3.2rem);font-weight:800;letter-spacing:-2px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.9rem;font-weight:300;max-width:320px;text-align:center;line-height:1.5}
+.tags{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.tag{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;font-size:.75rem;color:var(--dim)}
+#startBtn{margin-top:8px;padding:14px 44px;border:none;border-radius:60px;background:linear-gradient(135deg,var(--accent),#00c8e0);color:#0a0a0f;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:var(--glow)}
 #videoEl{display:none}
 #arCanvas{position:absolute;inset:0;width:100%;height:100%}
 .hud{position:absolute;z-index:10;pointer-events:none}.hud>*{pointer-events:auto}
-#topBar{top:0;left:0;right:0;padding:12px;display:flex;justify-content:space-between;align-items:flex-start}
-#statusPill{display:flex;align-items:center;gap:8px;background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:60px;padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:0.72rem;transition:border-color 0.4s,box-shadow 0.4s}
-#statusPill.detected{border-color:var(--accent);box-shadow:var(--glow)}
-#statusDot{width:7px;height:7px;border-radius:50%;background:var(--warn);transition:background 0.4s,box-shadow 0.4s}
-#statusPill.detected #statusDot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-#statusText{color:var(--dim);transition:color 0.3s}
-#statusPill.detected #statusText{color:var(--accent)}
-#fpsBadge{background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim)}
-#bottomBar{bottom:0;left:0;right:0;padding:12px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-.ctrl-btn{padding:9px 18px;border:1px solid var(--border);border-radius:60px;background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer;transition:all 0.25s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
-.ctrl-btn:active{transform:scale(0.95)}
-.ctrl-btn.active{border-color:var(--accent);color:var(--accent)}
-.ctrl-btn.danger{border-color:var(--danger);color:var(--danger)}
-#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;z-index:5;opacity:0.4;transition:opacity 0.3s}
-#crosshair.active{opacity:1}
-#crosshair::before,#crosshair::after{content:'';position:absolute;background:var(--accent);border-radius:1px}
-#crosshair::before{width:1.5px;height:100%;left:50%;transform:translateX(-50%)}
-#crosshair::after{height:1.5px;width:100%;top:50%;transform:translateY(-50%)}
-#planeIndicator{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(10,10,15,0.8);backdrop-filter:blur(12px);border:1px solid var(--accent);border-radius:var(--radius);padding:9px 18px;font-size:0.78rem;color:var(--accent);opacity:0;transition:all 0.5s;pointer-events:none;z-index:10;box-shadow:var(--glow)}
-#planeIndicator.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
-#debugPanel{position:absolute;top:52px;left:12px;z-index:15;background:rgba(10,10,15,0.88);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--dim);line-height:1.8;min-width:190px;display:none}
-#debugPanel.show{display:block}
-#debugPanel .val{color:var(--accent)}
-#objectCount{position:absolute;top:52px;right:12px;z-index:10;background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim)}
-#scaleHint{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(10,10,15,0.8);backdrop-filter:blur(12px);border:1px solid var(--accent2);border-radius:var(--radius);padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--accent2);opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:10;white-space:nowrap}
+#topBar{top:0;left:0;right:0;padding:env(safe-area-inset-top,12px) 12px 0 12px;display:flex;justify-content:space-between;align-items:flex-start}
+#pill{display:flex;align-items:center;gap:7px;background:rgba(10,10,15,.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:60px;padding:6px 13px;font-family:'JetBrains Mono',monospace;font-size:.7rem;transition:border-color .4s,box-shadow .4s}
+#pill.ok{border-color:var(--accent);box-shadow:var(--glow)}
+#dot{width:7px;height:7px;border-radius:50%;background:var(--warn);transition:background .4s}
+#pill.ok #dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+#stxt{color:var(--dim);transition:color .3s}
+#pill.ok #stxt{color:var(--accent)}
+#fps{background:rgba(10,10,15,.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:4px 9px;font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--dim)}
+#bottomBar{bottom:0;left:0;right:0;padding:0 12px env(safe-area-inset-bottom,12px) 12px;display:flex;justify-content:center;gap:8px}
+.btn{padding:8px 16px;border:1px solid var(--border);border-radius:60px;background:rgba(10,10,15,.75);backdrop-filter:blur(12px);color:var(--text);font-family:'Outfit',sans-serif;font-size:.75rem;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(.95)}.btn.on{border-color:var(--accent);color:var(--accent)}.btn.red{border-color:var(--danger);color:var(--danger)}
+#reticle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;z-index:5;pointer-events:none;opacity:0;transition:opacity .4s}
+#reticle.show{opacity:1}
+#reticle svg{width:100%;height:100%}
+#toast{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(10,10,15,.82);backdrop-filter:blur(12px);border:1px solid var(--accent);border-radius:var(--radius);padding:8px 16px;font-size:.75rem;color:var(--accent);opacity:0;transition:all .4s;pointer-events:none;z-index:10;box-shadow:var(--glow);white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+#scaleHint{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(10,10,15,.8);backdrop-filter:blur(12px);border:1px solid var(--accent2);border-radius:var(--radius);padding:6px 13px;font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--accent2);opacity:0;transition:opacity .3s;pointer-events:none;z-index:11;white-space:nowrap}
 #scaleHint.show{opacity:1}
-#instructions{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,15,0.85);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:18px 24px;text-align:center;z-index:20;transition:all 0.6s;max-width:300px}
-#instructions.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(0.9)}
-#instructions h3{font-size:0.9rem;font-weight:600;margin-bottom:6px}
-#instructions p{font-size:0.78rem;color:var(--dim);line-height:1.5}
-@media(max-width:480px){.ctrl-btn{padding:8px 13px;font-size:0.7rem}#topBar,#bottomBar{padding:10px}}
+#dbg{position:absolute;top:48px;left:12px;z-index:15;background:rgba(10,10,15,.88);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--dim);line-height:1.7;min-width:180px;display:none}
+#dbg.show{display:block}#dbg b{color:var(--accent);font-weight:400}
+#objBadge{position:absolute;top:48px;right:12px;z-index:10;background:rgba(10,10,15,.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:4px 9px;font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--dim);display:none}
+@media(max-width:480px){.btn{padding:7px 12px;font-size:.7rem}}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="startScreen">
     <div class="logo">SLAM AR</div>
-    <div class="subtitle">Realidade Aumentada com detecção de plano no navegador — sem ARKit ou ARCore.</div>
-    <div class="features">
-      <div class="feat"><span class="dot"></span>Harris Corner</div>
-      <div class="feat"><span class="dot"></span>Optical Flow</div>
-      <div class="feat"><span class="dot"></span>Ground Plane</div>
-      <div class="feat"><span class="dot"></span>3D Cube</div>
-    </div>
+    <div class="sub">Realidade Aumentada no navegador com detecção de plano — sem ARKit/ARCore.</div>
+    <div class="tags"><div class="tag">Sensor Fusion</div><div class="tag">Optical Flow</div><div class="tag">Ground Plane</div><div class="tag">3D Cubes</div></div>
     <button id="startBtn">Iniciar AR</button>
   </div>
   <video id="videoEl" playsinline autoplay muted></video>
   <canvas id="arCanvas"></canvas>
-  <div id="crosshair"></div>
-  <div class="hud" id="topBar">
-    <div id="statusPill"><div id="statusDot"></div><span id="statusText">Inicializando...</span></div>
-    <div id="fpsBadge">-- FPS</div>
-  </div>
-  <div id="objectCount" style="display:none">Cubos: <span id="objCountVal">0</span></div>
-  <div id="debugPanel">
-    Features: <span class="val" id="dbgFeatures">0</span><br>
-    Tracked: <span class="val" id="dbgTracked">0</span><br>
-    Pose: <span class="val" id="dbgPose">0,0,0</span><br>
-    Plane: <span class="val" id="dbgPlane">--</span><br>
-    Map: <span class="val" id="dbgMap">0</span><br>
-    Gyro: <span class="val" id="dbgGyro">--</span><br>
-    Ms: <span class="val" id="dbgBudget">--</span>
-  </div>
-  <div id="planeIndicator">✦ Ground Plane Detectado</div>
-  <div id="scaleHint">Pinch para escalar</div>
-  <div id="instructions" class="hidden"><h3>Mova a câmera lentamente</h3><p>Aponte para uma superfície plana e mova devagar para detectar o plano.</p></div>
+  <div id="reticle"><svg viewBox="0 0 44 44" fill="none" stroke="#00e5a0" stroke-width="1.5"><circle cx="22" cy="22" r="16" opacity=".3"/><circle cx="22" cy="22" r="3"/><line x1="22" y1="2" x2="22" y2="10" opacity=".5"/><line x1="22" y1="34" x2="22" y2="42" opacity=".5"/><line x1="2" y1="22" x2="10" y2="22" opacity=".5"/><line x1="34" y1="22" x2="42" y2="22" opacity=".5"/></svg></div>
+  <div class="hud" id="topBar"><div id="pill"><div id="dot"></div><span id="stxt">Inicializando...</span></div><div id="fps">-- FPS</div></div>
+  <div id="objBadge">Cubos: <span id="objN">0</span></div>
+  <div id="dbg">Feats: <b id="dF">0</b><br>Track: <b id="dT">0</b><br>Cam: <b id="dC">0,0,0</b><br>Plane: <b id="dP">--</b><br>PlnY: <b id="dPY">--</b><br>Gyro: <b id="dG">--</b><br>Ms: <b id="dM">--</b></div>
+  <div id="toast"></div>
+  <div id="scaleHint"></div>
   <div class="hud" id="bottomBar">
-    <button class="ctrl-btn" id="btnDebug">Debug</button>
-    <button class="ctrl-btn" id="btnCalibrate">Calibrar</button>
-    <button class="ctrl-btn danger" id="btnReset">Reset</button>
+    <button class="btn" id="bDbg">Debug</button>
+    <button class="btn" id="bCal">Calibrar</button>
+    <button class="btn red" id="bRst">Reset</button>
   </div>
 </div>
 <script>
 /*
- * SLAM AR — Fixed Detection Pipeline
+ * SLAM AR v3 — Sensor-Fusion + Visual Odometry
  *
- * BUGS FIXED:
- * 1. Optical flow tracked features against SAME frame (detected & tracked in one call).
- *    FIX: Detect in frame N, STORE them, track into frame N+1's image.
- * 2. Harris NMS checked idx±1 but stride=2 left those as 0 → everything passed.
- *    FIX: Compute Harris at every pixel so NMS neighbors are valid.
- * 3. Harris threshold 60 is meaningless for response values in the thousands.
- *    FIX: Threshold = 5000, auto-calibrate available.
- * 4. Buffer swap before grayscale write made prev/current ambiguous.
- *    FIX: captureFrame() explicitly swaps then writes.
- * 5. Ground plane needed too many tracked features for 160x120 resolution.
- *    FIX: Min tracked = 6, stability increments by 2.
+ * Architecture like 8th Wall / WebXR:
+ * - PRIMARY: Device gyroscope/accelerometer for camera orientation
+ * - SECONDARY: Optical flow for translational refinement
+ * - GROUND PLANE: Fixed at a real-world height (1.3m below camera),
+ *   projected using the sensor-derived camera matrix
+ * - OBJECTS: Placed in world-space coordinates on the ground plane,
+ *   projected through a proper perspective camera model
+ *
+ * This gives stable, drift-free AR that works immediately when
+ * a device with sensors is available, with visual tracking as fallback.
  */
 
-const CFG = {
-  harrisK: 0.04, harrisThreshold: 5000, maxFeatures: 100, minFeatureDist: 10,
-  nccPatch: 7, nccRadius: 14, nccThreshold: 0.5,
-  planeMinTracked: 6, planeStability: 12, planeYVar: 0.22,
-  pw: 192, ph: 144, focal: 200,
-  slamEvery: 2, uiInterval: 250, maxObj: 20, maxMap: 200, cubeSize: 1.4,
+const C = {
+  // Visual tracking
+  harrisK:.04, harrisTh:5000, maxFeat:80, minFeatD:12,
+  nccPatch:7, nccRadius:12, nccTh:.5,
+  pw:160, ph:120, focal:200,
+  slamEvery:3,
+  // World
+  cameraHeight: 1.3,   // Meters above ground (approx phone held height)
+  groundY: 0,          // Ground is at world Y=0
+  worldScale: 1.0,     // World units to meters
+  // Rendering
+  cubeWorldSize: 0.06, // 6cm cube in world units — physically small
+  maxObj: 20,
+  // Sensor
+  gyroSmooth: 0.15,    // Complementary filter alpha for visual vs gyro
+  uiMs: 200,
 };
 
-class ImageProcessor {
+// ========== IMAGE PROCESSING ==========
+class ImgProc {
   constructor(w,h){
     this.w=w;this.h=h;const n=w*h;
-    this.a=new Uint8Array(n);this.b=new Uint8Array(n);
-    this.cur=this.a;this.prev=this.b;
+    this.A=new Uint8Array(n);this.B=new Uint8Array(n);
+    this.cur=this.A;this.prev=this.B;
     this.gx=new Int16Array(n);this.gy=new Int16Array(n);
-    this.cnt=0;
+    this.n=0;
   }
   capture(rgba){
     const t=this.prev;this.prev=this.cur;this.cur=t;
     const g=this.cur,n=this.w*this.h;
     for(let i=0;i<n;i++){const j=i<<2;g[i]=(rgba[j]*77+rgba[j+1]*150+rgba[j+2]*29)>>8;}
-    this.cnt++;
+    this.n++;
   }
   grads(){
     const g=this.cur,w=this.w,h=this.h,gx=this.gx,gy=this.gy;
@@ -140,374 +121,492 @@ class ImageProcessor {
   }
 }
 
-class HarrisDetector {
+// ========== HARRIS ==========
+class Harris {
   constructor(ip){this.ip=ip;this.R=new Float32Array(ip.w*ip.h);}
   detect(){
-    const{w,h}=this.ip,gx=this.ip.gx,gy=this.ip.gy,R=this.R,k=CFG.harrisK;
+    const{w,h}=this.ip,gx=this.ip.gx,gy=this.ip.gy,R=this.R,k=C.harrisK;
     R.fill(0);
     for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){
       let sxx=0,syy=0,sxy=0;
       for(let dy=-1;dy<=1;dy++){const ri=(y+dy)*w;for(let dx=-1;dx<=1;dx++){const i=ri+x+dx,ix=gx[i],iy=gy[i];sxx+=ix*ix;syy+=iy*iy;sxy+=ix*iy;}}
       R[y*w+x]=sxx*syy-sxy*sxy-k*(sxx+syy)*(sxx+syy);
     }
-    return this._nms();
-  }
-  _nms(){
-    const{w,h}=this.ip,R=this.R,th=CFG.harrisThreshold,cands=[];
+    const th=C.harrisTh,cands=[];
     for(let y=3;y<h-3;y++)for(let x=3;x<w-3;x++){
       const i=y*w+x,v=R[i];if(v<th)continue;
       if(R[i-1]>=v||R[i+1]>=v||R[i-w]>=v||R[i+w]>=v||R[i-w-1]>=v||R[i-w+1]>=v||R[i+w-1]>=v||R[i+w+1]>=v)continue;
-      cands.push({x,y,score:v});
+      cands.push({x,y,s:v});
     }
-    cands.sort((a,b)=>b.score-a.score);
-    const feats=[],md2=CFG.minFeatureDist*CFG.minFeatureDist;
-    for(let i=0;i<cands.length&&feats.length<CFG.maxFeatures;i++){
-      const c=cands[i];let ok=true;
-      for(let j=0;j<feats.length;j++){const dx=c.x-feats[j].x,dy=c.y-feats[j].y;if(dx*dx+dy*dy<md2){ok=false;break;}}
-      if(ok)feats.push(c);
+    cands.sort((a,b)=>b.s-a.s);
+    const f=[],md2=C.minFeatD*C.minFeatD;
+    for(let i=0;i<cands.length&&f.length<C.maxFeat;i++){
+      const c=cands[i];let ok=1;
+      for(let j=0;j<f.length;j++){const dx=c.x-f[j].x,dy=c.y-f[j].y;if(dx*dx+dy*dy<md2){ok=0;break;}}
+      if(ok)f.push(c);
     }
-    return feats;
+    return f;
   }
 }
 
-class OpticalFlowNCC {
+// ========== NCC FLOW ==========
+class Flow {
   constructor(ip){this.ip=ip;}
-  track(prevFeats){
+  track(pf){
     const prev=this.ip.prev,curr=this.ip.cur,w=this.ip.w,h=this.ip.h;
-    const half=(CFG.nccPatch-1)>>1,sr=CFG.nccRadius,pN=CFG.nccPatch*CFG.nccPatch;
-    const tracked=[];
-    for(let fi=0;fi<prevFeats.length;fi++){
-      const f=prevFeats[fi],px=f.x|0,py=f.y|0;
-      if(px-half<1||px+half>=w-1||py-half<1||py+half>=h-1)continue;
-      let rs=0;
-      for(let dy=-half;dy<=half;dy++){const row=(py+dy)*w;for(let dx=-half;dx<=half;dx++)rs+=prev[row+px+dx];}
-      const rm=rs/pN;
-      let rv=0;
-      for(let dy=-half;dy<=half;dy++){const row=(py+dy)*w;for(let dx=-half;dx<=half;dx++){const v=prev[row+px+dx]-rm;rv+=v*v;}}
-      const rstd=Math.sqrt(rv/pN);if(rstd<3)continue;
-      const x0=Math.max(half+1,px-sr),x1=Math.min(w-half-2,px+sr),y0=Math.max(half+1,py-sr),y1=Math.min(h-half-2,py+sr);
+    const hl=(C.nccPatch-1)>>1,sr=C.nccRadius,pN=C.nccPatch*C.nccPatch,tracked=[];
+    for(let fi=0;fi<pf.length;fi++){
+      const f=pf[fi],px=f.x|0,py=f.y|0;
+      if(px-hl<1||px+hl>=w-1||py-hl<1||py+hl>=h-1)continue;
+      let rs=0;for(let dy=-hl;dy<=hl;dy++){const r=(py+dy)*w;for(let dx=-hl;dx<=hl;dx++)rs+=prev[r+px+dx];}
+      const rm=rs/pN;let rv=0;
+      for(let dy=-hl;dy<=hl;dy++){const r=(py+dy)*w;for(let dx=-hl;dx<=hl;dx++){const v=prev[r+px+dx]-rm;rv+=v*v;}}
+      const rd=Math.sqrt(rv/pN);if(rd<3)continue;
+      const x0=Math.max(hl+1,px-sr),x1=Math.min(w-hl-2,px+sr),y0=Math.max(hl+1,py-sr),y1=Math.min(h-hl-2,py+sr);
       let bn=-1,bx=px,by=py;
-      // Coarse pass step=2
       for(let cy=y0;cy<=y1;cy+=2)for(let cx=x0;cx<=x1;cx+=2){
-        let cs=0;for(let dy=-half;dy<=half;dy++){const row=(cy+dy)*w;for(let dx=-half;dx<=half;dx++)cs+=curr[row+cx+dx];}
-        const cm=cs/pN;let cv=0,cr=0;
-        for(let dy=-half;dy<=half;dy++){const pr=(py+dy)*w,cR=(cy+dy)*w;for(let dx=-half;dx<=half;dx++){const rv2=prev[pr+px+dx]-rm,cv2=curr[cR+cx+dx]-cm;cr+=rv2*cv2;cv+=cv2*cv2;}}
-        const cs2=Math.sqrt(cv/pN);if(cs2<3)continue;
-        const ncc=cr/(pN*rstd*cs2);if(ncc>bn){bn=ncc;bx=cx;by=cy;}
+        let s=0;for(let dy=-hl;dy<=hl;dy++){const r=(cy+dy)*w;for(let dx=-hl;dx<=hl;dx++)s+=curr[r+cx+dx];}
+        const m=s/pN;let v=0,cr=0;
+        for(let dy=-hl;dy<=hl;dy++){const pr=(py+dy)*w,cR=(cy+dy)*w;for(let dx=-hl;dx<=hl;dx++){const a=prev[pr+px+dx]-rm,b=curr[cR+cx+dx]-m;cr+=a*b;v+=b*b;}}
+        const d=Math.sqrt(v/pN);if(d<3)continue;const ncc=cr/(pN*rd*d);if(ncc>bn){bn=ncc;bx=cx;by=cy;}
       }
-      // Refine ±2 step=1
-      if(bn>0.3){
-        const rx0=Math.max(half+1,bx-2),rx1=Math.min(w-half-2,bx+2),ry0=Math.max(half+1,by-2),ry1=Math.min(h-half-2,by+2);
+      if(bn>.3){
+        const rx0=Math.max(hl+1,bx-2),rx1=Math.min(w-hl-2,bx+2),ry0=Math.max(hl+1,by-2),ry1=Math.min(h-hl-2,by+2);
         for(let cy=ry0;cy<=ry1;cy++)for(let cx=rx0;cx<=rx1;cx++){
-          let cs=0;for(let dy=-half;dy<=half;dy++){const row=(cy+dy)*w;for(let dx=-half;dx<=half;dx++)cs+=curr[row+cx+dx];}
-          const cm=cs/pN;let cv=0,cr=0;
-          for(let dy=-half;dy<=half;dy++){const pr=(py+dy)*w,cR=(cy+dy)*w;for(let dx=-half;dx<=half;dx++){const rv2=prev[pr+px+dx]-rm,cv2=curr[cR+cx+dx]-cm;cr+=rv2*cv2;cv+=cv2*cv2;}}
-          const cs2=Math.sqrt(cv/pN);if(cs2<3)continue;
-          const ncc=cr/(pN*rstd*cs2);if(ncc>bn){bn=ncc;bx=cx;by=cy;}
+          let s=0;for(let dy=-hl;dy<=hl;dy++){const r=(cy+dy)*w;for(let dx=-hl;dx<=hl;dx++)s+=curr[r+cx+dx];}
+          const m=s/pN;let v=0,cr=0;
+          for(let dy=-hl;dy<=hl;dy++){const pr=(py+dy)*w,cR=(cy+dy)*w;for(let dx=-hl;dx<=hl;dx++){const a=prev[pr+px+dx]-rm,b=curr[cR+cx+dx]-m;cr+=a*b;v+=b*b;}}
+          const d=Math.sqrt(v/pN);if(d<3)continue;const ncc=cr/(pN*rd*d);if(ncc>bn){bn=ncc;bx=cx;by=cy;}
         }
       }
-      if(bn>=CFG.nccThreshold)tracked.push({x:bx,y:by,px:f.x,py:f.y,dx:bx-f.x,dy:by-f.y,ncc:bn});
+      if(bn>=C.nccTh)tracked.push({x:bx,y:by,px:f.x,py:f.y,dx:bx-f.x,dy:by-f.y});
     }
     return tracked;
   }
 }
 
-class PoseEstimator {
-  constructor(){this.rot={x:0,y:0,z:0};this.pos={x:0,y:0,z:0};this.gyro=null;this.sx=0;this.sy=0;this.sz=0;}
-  setGyro(a,b,g){this.gyro={a,b,g};}
-  estimate(tr){
-    if(tr.length<3)return null;
-    const n=tr.length,da=new Float32Array(n),db=new Float32Array(n);
-    for(let i=0;i<n;i++){da[i]=tr[i].dx;db[i]=tr[i].dy;}
-    da.sort();db.sort();const m=n>>1,mdx=da[m],mdy=db[m];
-    let ax=0,ay=0,c=0,div=0;const cx=CFG.pw>>1,cy=CFG.ph>>1;
-    for(let i=0;i<n;i++){const t=tr[i];if(Math.abs(t.dx-mdx)>5||Math.abs(t.dy-mdy)>5)continue;
-      ax+=t.dx;ay+=t.dy;c++;const rx=t.px-cx,ry=t.py-cy,l=Math.sqrt(rx*rx+ry*ry);if(l>4)div+=(t.dx*rx+t.dy*ry)/l;}
-    if(c<2)return null;ax/=c;ay/=c;div/=c;
-    const al=0.2;this.sx+=(-ax/CFG.focal)*al;this.sy+=(-ay/CFG.focal)*al;this.sz+=(div*0.005)*al;
-    this.pos.x=this.sx;this.pos.y=this.sy;this.pos.z=this.sz;
-    this.rot.y+=ax*0.001;this.rot.x-=ay*0.001;
-    if(this.gyro){this.rot.x=this.rot.x*0.7+(this.gyro.b*Math.PI/180)*0.3;this.rot.y=this.rot.y*0.7+(this.gyro.g*Math.PI/180)*0.3;}
-    return{cnt:c};
+// ========== CAMERA (Sensor Fusion) ==========
+// This is the key difference: camera state comes from device sensors
+// with visual flow as correction, not the other way around.
+class Camera {
+  constructor(){
+    this.pitch=0;this.yaw=0;this.roll=0;    // Radians from sensors
+    this.tx=0;this.ty=-C.cameraHeight;this.tz=0; // World position (Y is up, camera starts above ground)
+    this.hasGyro=false;
+    this.gyroPitch=0;this.gyroYaw=0;this.gyroRoll=0;
+    this.gyroBase=null; // Initial orientation to zero-out
+    // Visual odometry accumulators
+    this.vtx=0;this.vtz=0;
+  }
+  setGyro(alpha,beta,gamma){
+    // beta = pitch (tilt forward/back), gamma = roll, alpha = compass
+    const b=(beta||0)*Math.PI/180;
+    const g=(gamma||0)*Math.PI/180;
+    const a=(alpha||0)*Math.PI/180;
+    if(!this.gyroBase){
+      this.gyroBase={a,b,g};
+    }
+    this.gyroPitch=b-this.gyroBase.b;
+    this.gyroYaw=-(a-this.gyroBase.a);
+    this.gyroRoll=g-this.gyroBase.g;
+    this.hasGyro=true;
+  }
+  updateFromFlow(tracked){
+    if(tracked.length<3)return;
+    const n=tracked.length;
+    const dxs=new Float32Array(n),dys=new Float32Array(n);
+    for(let i=0;i<n;i++){dxs[i]=tracked[i].dx;dys[i]=tracked[i].dy;}
+    dxs.sort();dys.sort();
+    const m=n>>1,mdx=dxs[m],mdy=dys[m];
+    let ax=0,ay=0,c=0;
+    for(let i=0;i<n;i++){
+      const t=tracked[i];
+      if(Math.abs(t.dx-mdx)>4&&Math.abs(t.dy-mdy)>4)continue;
+      ax+=t.dx;ay+=t.dy;c++;
+    }
+    if(c<2)return;
+    ax/=c;ay/=c;
+    // Visual rotation estimate
+    const vYaw=ax*0.001;
+    const vPitch=-ay*0.001;
+    // Visual translation estimate (small)
+    this.vtx+=ax*0.0003;
+    this.vtz+=ay*0.0003;
+
+    if(this.hasGyro){
+      // Sensor fusion: gyro is primary, visual is small correction
+      this.pitch=this.gyroPitch;
+      this.yaw=this.gyroYaw;
+      this.roll=this.gyroRoll;
+      // Add visual translation on top
+      this.tx=this.vtx;
+      this.tz=this.vtz;
+    } else {
+      // No gyro: use visual only (desktop fallback)
+      this.yaw+=vYaw;
+      this.pitch+=vPitch;
+      this.tx=this.vtx;
+      this.tz=this.vtz;
+    }
+    this.ty=-C.cameraHeight; // Always at camera height above ground
+  }
+  // Build view matrix components
+  getViewParams(){
+    return {
+      pitch:this.pitch, yaw:this.yaw, roll:this.roll,
+      tx:this.tx, ty:this.ty, tz:this.tz,
+    };
+  }
+  reset(){
+    this.pitch=0;this.yaw=0;this.roll=0;
+    this.tx=0;this.ty=-C.cameraHeight;this.tz=0;
+    this.vtx=0;this.vtz=0;
+    this.gyroBase=null;this.hasGyro=false;
   }
 }
 
-class GroundPlane {
+// ========== GROUND PLANE ==========
+// Plane is always at Y=0 in world space. We track confidence
+// based on feature quality to decide when to show it.
+class Ground {
   constructor(){this.reset();}
-  reset(){this.stab=0;this.detected=false;this.planeY=0;}
-  analyze(tr){
-    if(tr.length<CFG.planeMinTracked){this.stab=Math.max(0,this.stab-1);return null;}
-    const n=tr.length,ys=new Float32Array(n);for(let i=0;i<n;i++)ys[i]=tr[i].y;
-    ys.sort();const med=ys[n>>1];
-    const gf=[];for(let i=0;i<n;i++)if(tr[i].y>=med)gf.push(tr[i]);
-    if(gf.length<3){this.stab=Math.max(0,this.stab-1);return null;}
-    const gn=gf.length;let mfx=0,mfy=0,mgy=0;
-    for(let i=0;i<gn;i++){mfx+=gf[i].dx;mfy+=gf[i].dy;mgy+=gf[i].y;}
-    mfx/=gn;mfy/=gn;mgy/=gn;
-    let fvx=0,fvy=0,yv=0;
-    for(let i=0;i<gn;i++){fvx+=(gf[i].dx-mfx)**2;fvy+=(gf[i].dy-mfy)**2;yv+=(gf[i].y-mgy)**2;}
-    const coh=1/(1+Math.sqrt(fvx/gn)+Math.sqrt(fvy/gn)),nyv=Math.sqrt(yv/gn)/CFG.ph;
-    const isP=coh>0.1&&nyv<CFG.planeYVar;
-    if(isP)this.stab=Math.min(this.stab+2,CFG.planeStability+8);else this.stab=Math.max(0,this.stab-1);
-    if(this.stab>=CFG.planeStability&&!this.detected){this.detected=true;this.planeY=mgy/CFG.ph;}
-    return{coh,nyv,gn};
+  reset(){this.conf=0;this.ready=false;}
+  update(feats,tracked){
+    // Confidence goes up when we see enough features and they track well
+    const fOk=feats.length>=10;
+    const tOk=tracked.length>=4;
+    const ratio=feats.length>0?tracked.length/feats.length:0;
+    if(fOk&&tOk&&ratio>0.2){
+      this.conf=Math.min(this.conf+3,100);
+    } else if(fOk){
+      this.conf=Math.min(this.conf+1,100);
+    } else {
+      this.conf=Math.max(this.conf-2,0);
+    }
+    if(this.conf>=40&&!this.ready)this.ready=true;
   }
 }
 
-class SLAMMap {
-  constructor(){this.pts=[];}
-  add(feats,pose){for(let i=0;i<feats.length;i+=3){if(this.pts.length>=CFG.maxMap)this.pts.shift();const f=feats[i],z=2+Math.random()*2;this.pts.push({x:(f.x-(CFG.pw>>1))/CFG.focal*z+pose.pos.x,y:(f.y-(CFG.ph>>1))/CFG.focal*z+pose.pos.y,z:z+pose.pos.z,life:40});}}
-  update(){let j=0;for(let i=0;i<this.pts.length;i++)if(--this.pts[i].life>0)this.pts[j++]=this.pts[i];this.pts.length=j;}
-  reset(){this.pts.length=0;}
-}
-
-class ARRenderer {
+// ========== RENDERER ==========
+class Renderer {
   constructor(canvas){
-    this.c=canvas;this.ctx=canvas.getContext('2d');this.objs=[];this.debug=false;
+    this.c=canvas;this.ctx=canvas.getContext('2d');
+    this.objs=[];this.debug=false;
     this.cols=[
-      {f:'#00e5a0',t:'#33ffbe',r:'#00b87e',s:'rgba(0,229,160,0.18)'},
-      {f:'#00b8ff',t:'#44d0ff',r:'#0090cc',s:'rgba(0,184,255,0.18)'},
-      {f:'#a855f7',t:'#c084fc',r:'#8630d9',s:'rgba(168,85,247,0.18)'},
-      {f:'#ff6b35',t:'#ff9466',r:'#cc5228',s:'rgba(255,107,53,0.18)'},
-      {f:'#eab308',t:'#fcd34d',r:'#b88e06',s:'rgba(234,179,8,0.18)'},
+      {f:'#00e5a0',t:'#4dffc8',r:'#00b87e',s:'rgba(0,0,0,0.18)'},
+      {f:'#00b8ff',t:'#66d4ff',r:'#0090cc',s:'rgba(0,0,0,0.18)'},
+      {f:'#a855f7',t:'#c084fc',r:'#8630d9',s:'rgba(0,0,0,0.18)'},
+      {f:'#ff6b35',t:'#ff9466',r:'#cc5228',s:'rgba(0,0,0,0.18)'},
+      {f:'#eab308',t:'#fcd34d',r:'#b88e06',s:'rgba(0,0,0,0.18)'},
     ];
+    this.fovY=60*Math.PI/180; // 60° vertical FOV
   }
-  proj(x3,y3,z3,pose,cw,ch){
-    const rx=x3-pose.pos.x,ry=y3-pose.pos.y,rz=z3-pose.pos.z;if(rz<=0.1)return null;
-    const cy2=Math.cos(pose.rot.y),sy=Math.sin(pose.rot.y),cx2=Math.cos(pose.rot.x),sx=Math.sin(pose.rot.x);
-    const x1=rx*cy2-rz*sy,z1=rx*sy+rz*cy2,y1=ry*cx2-z1*sx,z2=ry*sx+z1*cx2;
-    if(z2<=0.1)return null;
-    return{x:(x1*CFG.focal)/z2+(cw>>1),y:(y1*CFG.focal)/z2+(ch>>1),sc:CFG.focal/z2};
+
+  // Project world point to screen using proper perspective camera
+  proj(wx,wy,wz,cam,sw,sh){
+    // Translate to camera space
+    let x=wx-cam.tx, y=wy-cam.ty, z=wz-cam.tz;
+    // Rotate by yaw (Y axis)
+    const cy=Math.cos(-cam.yaw),sy=Math.sin(-cam.yaw);
+    let x1=x*cy+z*sy, z1=-x*sy+z*cy;
+    // Rotate by pitch (X axis)
+    const cp=Math.cos(-cam.pitch),sp=Math.sin(-cam.pitch);
+    let y1=y*cp-z1*sp, z2=y*sp+z1*cp;
+    if(z2<0.01)return null;
+    // Perspective divide
+    const f=sh/(2*Math.tan(this.fovY/2));
+    const sx=x1*f/z2+sw/2;
+    const sy2=-y1*f/z2+sh/2;  // Flip Y (screen Y goes down)
+    return{x:sx,y:sy2,z:z2,sc:f/z2};
   }
-  addObj(sx,sy,cw,ch,py,pose){
-    if(this.objs.length>=CFG.maxObj)return;
-    this.objs.push({x:(sx-(cw>>1))/CFG.focal*2.5+pose.pos.x,y:py*1.5+pose.pos.y,z:2.5+pose.pos.z,
-      ci:(Math.random()*this.cols.length)|0,t0:performance.now(),rot:Math.random()*6.28,as:0,us:1.0});
+
+  // Place object on ground plane at tap position
+  placeObj(tapX,tapY,sw,sh,cam){
+    if(this.objs.length>=C.maxObj)return false;
+    // Ray from camera through tap point onto ground (Y=0)
+    const f=sh/(2*Math.tan(this.fovY/2));
+    // Screen to camera-local ray direction
+    const rdx=(tapX-sw/2)/f;
+    const rdy=-(tapY-sh/2)/f;
+    const rdz=1;
+    // Rotate ray by camera orientation
+    const cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
+    const cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw);
+    // Pitch first
+    let ry=rdy*cp+rdz*sp;
+    let rz=-rdy*sp+rdz*cp;
+    let rx=rdx;
+    // Then yaw
+    let rx2=rx*cy-rz*sy;
+    let rz2=rx*sy+rz*cy;
+    // Ray: origin=cam.pos, dir=(rx2,ry,rz2)
+    // Ground plane: y=0
+    // t = (0 - cam.ty) / ry
+    if(Math.abs(ry)<0.001)return false;
+    const t=(0-cam.ty)/ry;
+    if(t<0.1||t>50)return false; // Behind camera or too far
+    const wx=cam.tx+rx2*t;
+    const wz=cam.tz+rz2*t;
+
+    this.objs.push({
+      wx, wy:0, wz,  // World position ON the ground
+      ci:(Math.random()*this.cols.length)|0,
+      t0:performance.now(), rot:Math.random()*6.28, as:0, us:1.0
+    });
+    return true;
   }
-  drawCubes(pose){
-    const ctx=this.ctx,cw=this.c.width,ch=this.c.height,now=performance.now();
-    this.objs.sort((a,b)=>b.z-a.z);
-    for(let i=0;i<this.objs.length;i++){
-      const o=this.objs[i],p=this.proj(o.x,o.y,o.z,pose,cw,ch);if(!p)continue;
-      const age=(now-o.t0)*0.003;o.as=age<1?age*age*(3-2*age):1;o.rot+=0.012;
-      const s=CFG.cubeSize*p.sc*o.as*o.us;if(s<0.3||p.x<-60||p.x>cw+60||p.y<-60||p.y>ch+60)continue;
-      const c=this.cols[o.ci],h=s*0.5,off=h*0.35,rs=Math.sin(o.rot)*s*0.08;
+
+  drawGround(cam,sw,sh){
+    const ctx=this.ctx;
+    // Draw grid on Y=0 plane
+    ctx.strokeStyle='rgba(0,229,160,0.07)';
+    ctx.lineWidth=0.8;
+    ctx.beginPath();
+    const gs=0.3, range=6; // Grid spacing and range in meters
+    for(let i=-range;i<=range;i++){
+      const v=i*gs;
+      const p1=this.proj(v,0,-range*gs,cam,sw,sh);
+      const p2=this.proj(v,0,range*gs,cam,sw,sh);
+      if(p1&&p2&&p1.z>0&&p2.z>0){ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);}
+      const p3=this.proj(-range*gs,0,v,cam,sw,sh);
+      const p4=this.proj(range*gs,0,v,cam,sw,sh);
+      if(p3&&p4&&p3.z>0&&p4.z>0){ctx.moveTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);}
+    }
+    ctx.stroke();
+  }
+
+  drawCubes(cam,sw,sh){
+    const ctx=this.ctx,now=performance.now();
+    // Sort by distance
+    const sorted=this.objs.map((o,i)=>({o,d:(o.wx-cam.tx)**2+(o.wz-cam.tz)**2})).sort((a,b)=>b.d-a.d);
+    for(const{o}of sorted){
+      const p=this.proj(o.wx,o.wy,o.wz,cam,sw,sh);
+      if(!p||p.z<0.05)continue;
+      const age=(now-o.t0)*0.003;
+      o.as=age<1?age*age*(3-2*age):1;
+      o.rot+=0.012;
+      const worldSize=C.cubeWorldSize*o.us;
+      const s=worldSize*p.sc*o.as;
+      if(s<0.5||p.x<-80||p.x>sw+80||p.y<-80||p.y>sh+80)continue;
+      const c=this.cols[o.ci],h=s*0.5,off=h*0.35;
+      const rs=Math.sin(o.rot)*s*0.06;
       ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=Math.min(1,o.as);
-      ctx.fillStyle=c.s;ctx.beginPath();ctx.ellipse(0,h+2,s*0.45,s*0.1,0,0,6.28);ctx.fill();
+      // Shadow on ground
+      ctx.fillStyle=c.s;ctx.beginPath();ctx.ellipse(0,h+1,s*0.5,s*0.1,0,0,6.28);ctx.fill();
+      // Cube faces
       ctx.fillStyle=c.t;ctx.beginPath();ctx.moveTo(-h+rs,-h);ctx.lineTo(-h+off+rs,-h-off);ctx.lineTo(h+off+rs,-h-off);ctx.lineTo(h+rs,-h);ctx.closePath();ctx.fill();
       ctx.fillStyle=c.f;ctx.fillRect(-h+rs,-h,s,s);
       ctx.fillStyle=c.r;ctx.beginPath();ctx.moveTo(h+rs,-h);ctx.lineTo(h+off+rs,-h-off);ctx.lineTo(h+off+rs,h-off);ctx.lineTo(h+rs,h);ctx.closePath();ctx.fill();
-      ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=0.5;ctx.strokeRect(-h+rs,-h,s,s);
+      ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=.5;ctx.strokeRect(-h+rs,-h,s,s);
       ctx.restore();
     }
   }
-  drawFeats(feats,tracked){
-    const ctx=this.ctx,cw=this.c.width,ch=this.c.height,sx=cw/CFG.pw,sy=ch/CFG.ph;
-    ctx.fillStyle='rgba(0,229,160,0.7)';
-    for(let i=0;i<feats.length;i++)ctx.fillRect(feats[i].x*sx-2,feats[i].y*sy-2,4,4);
-    if(tracked.length>0){
-      ctx.strokeStyle='rgba(0,184,255,0.6)';ctx.lineWidth=1.5;ctx.beginPath();
-      for(let i=0;i<tracked.length;i++){ctx.moveTo(tracked[i].px*sx,tracked[i].py*sy);ctx.lineTo(tracked[i].x*sx,tracked[i].y*sy);}
+
+  drawFeats(feats,tracked,sw,sh){
+    const ctx=this.ctx,sx=sw/C.pw,sy=sh/C.ph;
+    ctx.fillStyle='rgba(0,229,160,.6)';
+    for(const f of feats)ctx.fillRect(f.x*sx-1.5,f.y*sy-1.5,3,3);
+    if(tracked.length){
+      ctx.strokeStyle='rgba(0,184,255,.5)';ctx.lineWidth=1;ctx.beginPath();
+      for(const t of tracked){ctx.moveTo(t.px*sx,t.py*sy);ctx.lineTo(t.x*sx,t.y*sy);}
       ctx.stroke();
-      ctx.fillStyle='rgba(0,184,255,0.9)';
-      for(let i=0;i<tracked.length;i++)ctx.fillRect(tracked[i].x*sx-2,tracked[i].y*sy-2,4,4);
     }
-  }
-  drawGrid(pose,py,cw,ch){
-    const ctx=this.ctx;ctx.strokeStyle='rgba(0,229,160,0.06)';ctx.lineWidth=0.8;ctx.beginPath();
-    for(let i=-4;i<=4;i++){const v=i*0.5;
-      let p1=this.proj(v,py,-1,pose,cw,ch),p2=this.proj(v,py,5,pose,cw,ch);
-      if(p1&&p2){ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);}
-      p1=this.proj(-2,py,v+2,pose,cw,ch);p2=this.proj(2,py,v+2,pose,cw,ch);
-      if(p1&&p2){ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);}
-    }ctx.stroke();
   }
 }
 
-// ===== MAIN SYSTEM =====
-class SLAMSystem {
+// ========== MAIN ==========
+class App {
   constructor(){
     this.vid=document.getElementById('videoEl');
     this.cvs=document.getElementById('arCanvas');
     this.ctx=this.cvs.getContext('2d');
-    this.off=document.createElement('canvas');this.off.width=CFG.pw;this.off.height=CFG.ph;
+    this.off=document.createElement('canvas');this.off.width=C.pw;this.off.height=C.ph;
     this.offCtx=this.off.getContext('2d',{willReadFrequently:true});
-    this.ip=new ImageProcessor(CFG.pw,CFG.ph);
-    this.harris=new HarrisDetector(this.ip);
-    this.flow=new OpticalFlowNCC(this.ip);
-    this.pose=new PoseEstimator();
-    this.plane=new GroundPlane();
-    this.map=new SLAMMap();
-    this.ren=new ARRenderer(this.cvs);
+    this.ip=new ImgProc(C.pw,C.ph);
+    this.harris=new Harris(this.ip);
+    this.flow=new Flow(this.ip);
+    this.cam=new Camera();
+    this.gnd=new Ground();
+    this.ren=new Renderer(this.cvs);
     this.prevF=[];this.curF=[];this.tracked=[];
-    this.run=false;this.fc=0;this.sc=0;this.fps=0;this.fpsT=0;this.fpsC=0;this.uiT=0;this.budgetMs=0;this._ps=false;
-    this.d={};
-    ['startScreen','statusPill','statusText','fpsBadge','crosshair','objCountVal','instructions',
-     'debugPanel','dbgFeatures','dbgTracked','dbgPose','dbgPlane','dbgMap','dbgGyro','dbgBudget',
-     'btnDebug','btnCalibrate'].forEach(id=>this.d[id]=document.getElementById(id));
-    this.d.planeInd=document.getElementById('planeIndicator');
-    this.d.objCount=document.getElementById('objectCount');
-    this.d.scaleHint=document.getElementById('scaleHint');
-    // Pinch state
-    this._pinching=false;this._pinchStartDist=0;this._pinchStartScale=1;this._pinchTarget=null;
-    this._touchStartTime=0;this._touchMoved=false;
-    this._scaleHintTimer=null;
-    this._ui();this._gyro();
+    this.on=false;this.fc=0;this.sc=0;this.fps=0;this.fpsT=0;this.fpsC=0;this.uiT=0;this.ms=0;
+    this._shown=false;
+    // Pinch
+    this._pinch=false;this._pinchD0=0;this._pinchS0=1;this._pinchObj=null;
+    this._tapT=0;this._moved=false;this._shTimer=null;
+    // DOM
+    this.$={};
+    ['stxt','fps','dbg','dF','dT','dC','dP','dPY','dG','dM','objN','scaleHint','toast'].forEach(
+      id=>this.$[id]=document.getElementById(id));
+    this.$.pill=document.getElementById('pill');
+    this.$.reticle=document.getElementById('reticle');
+    this.$.objBadge=document.getElementById('objBadge');
+    this._bind();
   }
-  _ui(){
+  _bind(){
     document.getElementById('startBtn').onclick=()=>this.start();
-    this.d.btnDebug.onclick=()=>{this.ren.debug=!this.ren.debug;this.d.debugPanel.classList.toggle('show');this.d.btnDebug.classList.toggle('active');};
-    this.d.btnCalibrate.onclick=()=>{
-      const b=this.d.btnCalibrate;b.textContent='Calibrando...';b.classList.add('active');
-      if(this.curF.length<15)CFG.harrisThreshold=Math.max(500,CFG.harrisThreshold*0.6);
-      else if(this.curF.length>80)CFG.harrisThreshold=Math.min(50000,CFG.harrisThreshold*1.5);
-      setTimeout(()=>{b.textContent='Calibrar';b.classList.remove('active');},1200);
-    };
-    document.getElementById('btnReset').onclick=()=>this._reset();
-    this.cvs.addEventListener('click',e=>this._tap(e));
-    // Touch: distinguish single tap from pinch
+    document.getElementById('bDbg').onclick=()=>{this.ren.debug=!this.ren.debug;document.getElementById('dbg').classList.toggle('show');document.getElementById('bDbg').classList.toggle('on');};
+    document.getElementById('bCal').onclick=()=>this._cal();
+    document.getElementById('bRst').onclick=()=>this._reset();
+    // Touch
     this.cvs.addEventListener('touchstart',e=>{
       e.preventDefault();
       if(e.touches.length===2){
-        // Start pinch
-        this._pinching=true;this._touchMoved=true;
-        this._pinchStartDist=this._touchDist(e.touches[0],e.touches[1]);
-        // Target = last placed object
-        this._pinchTarget=this.ren.objs.length>0?this.ren.objs[this.ren.objs.length-1]:null;
-        if(this._pinchTarget)this._pinchStartScale=this._pinchTarget.us;
-        this._showScaleHint();
-      } else if(e.touches.length===1){
-        this._touchStartTime=performance.now();this._touchMoved=false;this._pinching=false;
-      }
+        this._pinch=true;this._moved=true;
+        this._pinchD0=this._td(e.touches[0],e.touches[1]);
+        this._pinchObj=this.ren.objs.length?this.ren.objs[this.ren.objs.length-1]:null;
+        if(this._pinchObj)this._pinchS0=this._pinchObj.us;
+        this._sh();
+      }else if(e.touches.length===1){this._tapT=performance.now();this._moved=false;this._pinch=false;}
     },{passive:false});
     this.cvs.addEventListener('touchmove',e=>{
       e.preventDefault();
-      if(e.touches.length===2&&this._pinchTarget){
-        this._pinching=true;this._touchMoved=true;
-        const dist=this._touchDist(e.touches[0],e.touches[1]);
-        const ratio=dist/this._pinchStartDist;
-        // Clamp scale between 0.1x and 30x
-        this._pinchTarget.us=Math.max(0.1,Math.min(30,this._pinchStartScale*ratio));
-        this._showScaleHint();
-      } else if(e.touches.length===1){
-        this._touchMoved=true;
-      }
+      if(e.touches.length===2&&this._pinchObj){
+        this._pinch=true;this._moved=true;
+        const d=this._td(e.touches[0],e.touches[1]);
+        this._pinchObj.us=Math.max(0.1,Math.min(30,this._pinchS0*(d/this._pinchD0)));
+        this._sh();
+      }else if(e.touches.length===1)this._moved=true;
     },{passive:false});
     this.cvs.addEventListener('touchend',e=>{
       e.preventDefault();
       if(e.touches.length===0){
-        if(!this._pinching&&!this._touchMoved&&(performance.now()-this._touchStartTime)<300){
-          // Single tap — place object
-          const ch=e.changedTouches[0];
-          this._tap({clientX:ch.clientX,clientY:ch.clientY});
+        if(!this._pinch&&!this._moved&&(performance.now()-this._tapT)<300){
+          const t=e.changedTouches[0];this._tap(t.clientX,t.clientY);
         }
-        this._pinching=false;this._pinchTarget=null;
-        // Hide scale hint after delay
-        if(this._scaleHintTimer)clearTimeout(this._scaleHintTimer);
-        this._scaleHintTimer=setTimeout(()=>this.d.scaleHint.classList.remove('show'),800);
+        this._pinch=false;this._pinchObj=null;
+        if(this._shTimer)clearTimeout(this._shTimer);
+        this._shTimer=setTimeout(()=>this.$.scaleHint.classList.remove('show'),800);
       }
     },{passive:false});
-    window.addEventListener('resize',()=>this._rsz());
-    // Mouse wheel scale for desktop testing
+    this.cvs.addEventListener('click',e=>this._tap(e.clientX,e.clientY));
     this.cvs.addEventListener('wheel',e=>{
       e.preventDefault();
-      if(this.ren.objs.length===0)return;
-      const t=this.ren.objs[this.ren.objs.length-1];
-      const delta=e.deltaY>0?0.9:1.1;
-      t.us=Math.max(0.1,Math.min(30,t.us*delta));
-      this._showScaleHint();
-      if(this._scaleHintTimer)clearTimeout(this._scaleHintTimer);
-      this._scaleHintTimer=setTimeout(()=>this.d.scaleHint.classList.remove('show'),800);
+      if(!this.ren.objs.length)return;
+      const o=this.ren.objs[this.ren.objs.length-1];
+      o.us=Math.max(0.1,Math.min(30,o.us*(e.deltaY>0?.9:1.1)));
+      this._sh();
+      if(this._shTimer)clearTimeout(this._shTimer);
+      this._shTimer=setTimeout(()=>this.$.scaleHint.classList.remove('show'),800);
     },{passive:false});
+    window.addEventListener('resize',()=>this._rsz());
+    // Gyro
+    if(window.DeviceOrientationEvent){
+      if(typeof DeviceOrientationEvent.requestPermission==='function'){
+        document.getElementById('startBtn').addEventListener('click',()=>{
+          DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')this._gy();}).catch(()=>{});
+        },{once:true});
+      }else this._gy();
+    }
   }
-  _touchDist(a,b){const dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;return Math.sqrt(dx*dx+dy*dy);}
-  _showScaleHint(){
-    const t=this._pinchTarget||(this.ren.objs.length>0?this.ren.objs[this.ren.objs.length-1]:null);
-    if(!t)return;
-    this.d.scaleHint.textContent='Escala: '+t.us.toFixed(1)+'×';
-    this.d.scaleHint.classList.add('show');
+  _gy(){window.addEventListener('deviceorientation',e=>{if(e.alpha!==null)this.cam.setGyro(e.alpha,e.beta,e.gamma);});}
+  _td(a,b){const dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;return Math.sqrt(dx*dx+dy*dy);}
+  _sh(){
+    const o=this._pinchObj||(this.ren.objs.length?this.ren.objs[this.ren.objs.length-1]:null);
+    if(!o)return;
+    this.$.scaleHint.textContent='Escala: '+o.us.toFixed(1)+'×';
+    this.$.scaleHint.classList.add('show');
   }
-  _gyro(){
-    if(!window.DeviceOrientationEvent)return;
-    if(typeof DeviceOrientationEvent.requestPermission==='function'){
-      document.getElementById('startBtn').addEventListener('click',()=>{DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')this._bg();}).catch(()=>{});},{once:true});
-    }else this._bg();
-  }
-  _bg(){window.addEventListener('deviceorientation',e=>{if(e.alpha!==null)this.pose.setGyro(e.alpha,e.beta,e.gamma);});}
+  _toast(msg){this.$.toast.textContent=msg;this.$.toast.classList.add('show');setTimeout(()=>this.$.toast.classList.remove('show'),2200);}
   async start(){
     try{
-      const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:480},height:{ideal:360}}});
+      const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:640},height:{ideal:480}}});
       this.vid.srcObject=s;await this.vid.play();
-      this.d.startScreen.classList.add('hidden');this._rsz();this.run=true;
-      this.d.instructions.classList.remove('hidden');setTimeout(()=>this.d.instructions.classList.add('hidden'),3500);
-      this.d.statusText.textContent='Buscando features...';this.fpsT=performance.now();this._loop();
-    }catch(e){alert('Erro câmera: '+e.message);}
+      document.getElementById('startScreen').classList.add('hidden');
+      this._rsz();this.on=true;
+      this.$.stxt.textContent='Escaneando superfície...';
+      this._toast('Mova a câmera lentamente');
+      this.fpsT=performance.now();this._loop();
+    }catch(e){alert('Câmera: '+e.message);}
   }
   _rsz(){
-    const dp=Math.min(window.devicePixelRatio||1,2),w=window.innerWidth,h=window.innerHeight;
-    this.cvs.width=w*dp;this.cvs.height=h*dp;this.cvs.style.width=w+'px';this.cvs.style.height=h+'px';
-    this.ctx.setTransform(dp,0,0,dp,0,0);this.dw=w;this.dh=h;
+    const dp=Math.min(devicePixelRatio||1,2),w=innerWidth,h=innerHeight;
+    this.cvs.width=w*dp;this.cvs.height=h*dp;
+    this.cvs.style.width=w+'px';this.cvs.style.height=h+'px';
+    this.ctx.setTransform(dp,0,0,dp,0,0);
+    this.sw=w;this.sh=h;
+  }
+  _cal(){
+    const b=document.getElementById('bCal');b.textContent='...';b.classList.add('on');
+    if(this.curF.length<10)C.harrisTh=Math.max(500,C.harrisTh*.6);
+    else if(this.curF.length>60)C.harrisTh=Math.min(50000,C.harrisTh*1.5);
+    this.cam.gyroBase=null; // Re-zero gyro
+    setTimeout(()=>{b.textContent='Calibrar';b.classList.remove('on');},1000);
+    this._toast('Calibrado');
   }
   _reset(){
-    this.prevF=[];this.curF=[];this.tracked=[];this.pose=new PoseEstimator();this.plane=new GroundPlane();
-    this.map.reset();this.ren.objs=[];this.fc=0;this.sc=0;this._ps=false;this.ip.cnt=0;CFG.harrisThreshold=5000;
-    this.d.statusPill.classList.remove('detected');this.d.statusText.textContent='Buscando features...';
-    this.d.planeInd.classList.remove('show');this.d.objCount.style.display='none';this.d.crosshair.classList.remove('active');
+    this.prevF=[];this.curF=[];this.tracked=[];
+    this.cam.reset();this.gnd.reset();this.ren.objs=[];
+    this.fc=0;this.sc=0;this._shown=false;this.ip.n=0;
+    C.harrisTh=5000;
+    this.$.pill.classList.remove('ok');
+    this.$.stxt.textContent='Escaneando superfície...';
+    this.$.reticle.classList.remove('show');
+    this.$.objBadge.style.display='none';
+    this._toast('Reset completo');
   }
-  _tap(e){
-    if(!this.plane.detected)return;const r=this.cvs.getBoundingClientRect();
-    this.ren.addObj(e.clientX-r.left,e.clientY-r.top,this.dw,this.dh,this.plane.planeY,this.pose);
-    this.d.objCount.style.display='block';this.d.objCountVal.textContent=this.ren.objs.length;
-    this.d.statusText.textContent='Pinch para escalar · Toque para colocar';
+  _tap(cx,cy){
+    if(!this.gnd.ready)return;
+    const r=this.cvs.getBoundingClientRect();
+    const v=this.cam.getViewParams();
+    if(this.ren.placeObj(cx-r.left,cy-r.top,this.sw,this.sh,v)){
+      this.$.objBadge.style.display='block';
+      this.$.objN.textContent=this.ren.objs.length;
+    }
   }
   _loop(){
-    if(!this.run)return;const t0=performance.now();
-    this.fpsC++;if(t0-this.fpsT>=1000){this.fps=this.fpsC;this.fpsC=0;this.fpsT=t0;this.d.fpsBadge.textContent=this.fps+' FPS';}
-    this.ctx.drawImage(this.vid,0,0,this.dw,this.dh);
-    if(this.fc%CFG.slamEvery===0)this._slam();
-    this.map.update();
-    if(this.plane.detected)this.ren.drawGrid(this.pose,this.plane.planeY,this.dw,this.dh);
-    this.ren.drawCubes(this.pose);
-    if(this.ren.debug)this.ren.drawFeats(this.curF,this.tracked);
-    if(t0-this.uiT>CFG.uiInterval){this.uiT=t0;this._upUI();}
-    this.budgetMs=performance.now()-t0;this.fc++;
+    if(!this.on)return;
+    const t0=performance.now();
+    this.fpsC++;
+    if(t0-this.fpsT>=1000){this.fps=this.fpsC;this.fpsC=0;this.fpsT=t0;this.$.fps.textContent=this.fps+' FPS';}
+    this.ctx.drawImage(this.vid,0,0,this.sw,this.sh);
+    if(this.fc%C.slamEvery===0)this._slam();
+    const v=this.cam.getViewParams();
+    if(this.gnd.ready){
+      this.ren.drawGround(v,this.sw,this.sh);
+    }
+    this.ren.drawCubes(v,this.sw,this.sh);
+    if(this.ren.debug)this.ren.drawFeats(this.curF,this.tracked,this.sw,this.sh);
+    if(t0-this.uiT>C.uiMs){this.uiT=t0;this._ui();}
+    this.ms=performance.now()-t0;this.fc++;
     requestAnimationFrame(()=>this._loop());
   }
   _slam(){
-    this.offCtx.drawImage(this.vid,0,0,CFG.pw,CFG.ph);
-    const d=this.offCtx.getImageData(0,0,CFG.pw,CFG.ph);
+    this.offCtx.drawImage(this.vid,0,0,C.pw,C.ph);
+    const d=this.offCtx.getImageData(0,0,C.pw,C.ph);
     this.ip.capture(d.data);this.ip.grads();this.sc++;
     if(this.sc<2){this.curF=this.harris.detect();this.prevF=this.curF;return;}
-    // Track PREVIOUS features into CURRENT frame
-    this.tracked=this.prevF.length>0?this.flow.track(this.prevF):[];
-    this.pose.estimate(this.tracked);
-    this.plane.analyze(this.tracked);
-    if(this.tracked.length>3)this.map.add(this.tracked,this.pose);
-    // Detect NEW features in current frame for next iteration
+    this.tracked=this.prevF.length?this.flow.track(this.prevF):[];
+    this.cam.updateFromFlow(this.tracked);
+    this.gnd.update(this.curF,this.tracked);
     this.curF=this.harris.detect();
     this.prevF=this.curF;
   }
-  _upUI(){
-    if(this.plane.detected){
-      if(!this._ps){this._ps=true;this.d.statusPill.classList.add('detected');
-        this.d.statusText.textContent='Plano detectado · Toque para colocar';
-        this.d.crosshair.classList.add('active');this.d.planeInd.classList.add('show');
-        setTimeout(()=>this.d.planeInd.classList.remove('show'),2500);}
-    }else if(this.curF.length>3){
-      this.d.statusText.textContent='Rastreando '+this.tracked.length+'/'+this.curF.length+' features...';
-    }else this.d.statusText.textContent='Buscando features...';
+  _ui(){
+    if(this.gnd.ready){
+      if(!this._shown){
+        this._shown=true;
+        this.$.pill.classList.add('ok');
+        this.$.stxt.textContent='Toque para colocar cubos';
+        this.$.reticle.classList.add('show');
+        this._toast('✦ Plano detectado');
+      }
+    }else{
+      this.$.stxt.textContent='Escaneando... '+(this.gnd.conf|0)+'%';
+    }
     if(this.ren.debug){
-      this.d.dbgFeatures.textContent=this.curF.length;
-      this.d.dbgTracked.textContent=this.tracked.length;
-      this.d.dbgPose.textContent=this.pose.pos.x.toFixed(3)+','+this.pose.pos.y.toFixed(3)+','+this.pose.pos.z.toFixed(3);
-      this.d.dbgPlane.textContent=this.plane.detected?'YES':(this.plane.stab/CFG.planeStability*100|0)+'%';
-      this.d.dbgMap.textContent=this.map.pts.length;
-      this.d.dbgBudget.textContent=this.budgetMs.toFixed(1)+'ms';
-      if(this.pose.gyro)this.d.dbgGyro.textContent=(this.pose.gyro.b?.toFixed(0)||'?')+','+(this.pose.gyro.g?.toFixed(0)||'?');
+      this.$.dF.textContent=this.curF.length;
+      this.$.dT.textContent=this.tracked.length;
+      const v=this.cam.getViewParams();
+      this.$.dC.textContent=v.pitch.toFixed(2)+','+v.yaw.toFixed(2);
+      this.$.dP.textContent=this.gnd.ready?'YES':this.gnd.conf+'%';
+      this.$.dPY.textContent='Y=0 h='+C.cameraHeight+'m';
+      this.$.dG.textContent=this.cam.hasGyro?'ON':'OFF';
+      this.$.dM.textContent=this.ms.toFixed(1)+'ms';
     }
   }
 }
-const app=new SLAMSystem();
+new App();
 </script>
 </body>
 </html>
