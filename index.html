@@ -47,6 +47,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 #debugPanel.show{display:block}
 #debugPanel .val{color:var(--accent)}
 #objectCount{position:absolute;top:52px;right:12px;z-index:10;background:rgba(10,10,15,0.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim)}
+#scaleHint{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(10,10,15,0.8);backdrop-filter:blur(12px);border:1px solid var(--accent2);border-radius:var(--radius);padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--accent2);opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:10;white-space:nowrap}
+#scaleHint.show{opacity:1}
 #instructions{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,15,0.85);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:18px 24px;text-align:center;z-index:20;transition:all 0.6s;max-width:300px}
 #instructions.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(0.9)}
 #instructions h3{font-size:0.9rem;font-weight:600;margin-bottom:6px}
@@ -85,6 +87,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     Ms: <span class="val" id="dbgBudget">--</span>
   </div>
   <div id="planeIndicator">✦ Ground Plane Detectado</div>
+  <div id="scaleHint">Pinch para escalar</div>
   <div id="instructions" class="hidden"><h3>Mova a câmera lentamente</h3><p>Aponte para uma superfície plana e mova devagar para detectar o plano.</p></div>
   <div class="hud" id="bottomBar">
     <button class="ctrl-btn" id="btnDebug">Debug</button>
@@ -114,7 +117,7 @@ const CFG = {
   nccPatch: 7, nccRadius: 14, nccThreshold: 0.5,
   planeMinTracked: 6, planeStability: 12, planeYVar: 0.22,
   pw: 192, ph: 144, focal: 200,
-  slamEvery: 2, uiInterval: 250, maxObj: 20, maxMap: 200, cubeSize: 14,
+  slamEvery: 2, uiInterval: 250, maxObj: 20, maxMap: 200, cubeSize: 1.4,
 };
 
 class ImageProcessor {
@@ -279,7 +282,7 @@ class ARRenderer {
   addObj(sx,sy,cw,ch,py,pose){
     if(this.objs.length>=CFG.maxObj)return;
     this.objs.push({x:(sx-(cw>>1))/CFG.focal*2.5+pose.pos.x,y:py*1.5+pose.pos.y,z:2.5+pose.pos.z,
-      ci:(Math.random()*this.cols.length)|0,t0:performance.now(),rot:Math.random()*6.28,as:0});
+      ci:(Math.random()*this.cols.length)|0,t0:performance.now(),rot:Math.random()*6.28,as:0,us:1.0});
   }
   drawCubes(pose){
     const ctx=this.ctx,cw=this.c.width,ch=this.c.height,now=performance.now();
@@ -287,7 +290,7 @@ class ARRenderer {
     for(let i=0;i<this.objs.length;i++){
       const o=this.objs[i],p=this.proj(o.x,o.y,o.z,pose,cw,ch);if(!p)continue;
       const age=(now-o.t0)*0.003;o.as=age<1?age*age*(3-2*age):1;o.rot+=0.012;
-      const s=CFG.cubeSize*p.sc*o.as;if(s<1.5||p.x<-60||p.x>cw+60||p.y<-60||p.y>ch+60)continue;
+      const s=CFG.cubeSize*p.sc*o.as*o.us;if(s<0.3||p.x<-60||p.x>cw+60||p.y<-60||p.y>ch+60)continue;
       const c=this.cols[o.ci],h=s*0.5,off=h*0.35,rs=Math.sin(o.rot)*s*0.08;
       ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=Math.min(1,o.as);
       ctx.fillStyle=c.s;ctx.beginPath();ctx.ellipse(0,h+2,s*0.45,s*0.1,0,0,6.28);ctx.fill();
@@ -344,6 +347,11 @@ class SLAMSystem {
      'btnDebug','btnCalibrate'].forEach(id=>this.d[id]=document.getElementById(id));
     this.d.planeInd=document.getElementById('planeIndicator');
     this.d.objCount=document.getElementById('objectCount');
+    this.d.scaleHint=document.getElementById('scaleHint');
+    // Pinch state
+    this._pinching=false;this._pinchStartDist=0;this._pinchStartScale=1;this._pinchTarget=null;
+    this._touchStartTime=0;this._touchMoved=false;
+    this._scaleHintTimer=null;
     this._ui();this._gyro();
   }
   _ui(){
@@ -357,8 +365,67 @@ class SLAMSystem {
     };
     document.getElementById('btnReset').onclick=()=>this._reset();
     this.cvs.addEventListener('click',e=>this._tap(e));
-    this.cvs.addEventListener('touchstart',e=>{e.preventDefault();this._tap({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});},{passive:false});
+    // Touch: distinguish single tap from pinch
+    this.cvs.addEventListener('touchstart',e=>{
+      e.preventDefault();
+      if(e.touches.length===2){
+        // Start pinch
+        this._pinching=true;this._touchMoved=true;
+        this._pinchStartDist=this._touchDist(e.touches[0],e.touches[1]);
+        // Target = last placed object
+        this._pinchTarget=this.ren.objs.length>0?this.ren.objs[this.ren.objs.length-1]:null;
+        if(this._pinchTarget)this._pinchStartScale=this._pinchTarget.us;
+        this._showScaleHint();
+      } else if(e.touches.length===1){
+        this._touchStartTime=performance.now();this._touchMoved=false;this._pinching=false;
+      }
+    },{passive:false});
+    this.cvs.addEventListener('touchmove',e=>{
+      e.preventDefault();
+      if(e.touches.length===2&&this._pinchTarget){
+        this._pinching=true;this._touchMoved=true;
+        const dist=this._touchDist(e.touches[0],e.touches[1]);
+        const ratio=dist/this._pinchStartDist;
+        // Clamp scale between 0.1x and 30x
+        this._pinchTarget.us=Math.max(0.1,Math.min(30,this._pinchStartScale*ratio));
+        this._showScaleHint();
+      } else if(e.touches.length===1){
+        this._touchMoved=true;
+      }
+    },{passive:false});
+    this.cvs.addEventListener('touchend',e=>{
+      e.preventDefault();
+      if(e.touches.length===0){
+        if(!this._pinching&&!this._touchMoved&&(performance.now()-this._touchStartTime)<300){
+          // Single tap — place object
+          const ch=e.changedTouches[0];
+          this._tap({clientX:ch.clientX,clientY:ch.clientY});
+        }
+        this._pinching=false;this._pinchTarget=null;
+        // Hide scale hint after delay
+        if(this._scaleHintTimer)clearTimeout(this._scaleHintTimer);
+        this._scaleHintTimer=setTimeout(()=>this.d.scaleHint.classList.remove('show'),800);
+      }
+    },{passive:false});
     window.addEventListener('resize',()=>this._rsz());
+    // Mouse wheel scale for desktop testing
+    this.cvs.addEventListener('wheel',e=>{
+      e.preventDefault();
+      if(this.ren.objs.length===0)return;
+      const t=this.ren.objs[this.ren.objs.length-1];
+      const delta=e.deltaY>0?0.9:1.1;
+      t.us=Math.max(0.1,Math.min(30,t.us*delta));
+      this._showScaleHint();
+      if(this._scaleHintTimer)clearTimeout(this._scaleHintTimer);
+      this._scaleHintTimer=setTimeout(()=>this.d.scaleHint.classList.remove('show'),800);
+    },{passive:false});
+  }
+  _touchDist(a,b){const dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;return Math.sqrt(dx*dx+dy*dy);}
+  _showScaleHint(){
+    const t=this._pinchTarget||(this.ren.objs.length>0?this.ren.objs[this.ren.objs.length-1]:null);
+    if(!t)return;
+    this.d.scaleHint.textContent='Escala: '+t.us.toFixed(1)+'×';
+    this.d.scaleHint.classList.add('show');
   }
   _gyro(){
     if(!window.DeviceOrientationEvent)return;
@@ -391,6 +458,7 @@ class SLAMSystem {
     if(!this.plane.detected)return;const r=this.cvs.getBoundingClientRect();
     this.ren.addObj(e.clientX-r.left,e.clientY-r.top,this.dw,this.dh,this.plane.planeY,this.pose);
     this.d.objCount.style.display='block';this.d.objCountVal.textContent=this.ren.objs.length;
+    this.d.statusText.textContent='Pinch para escalar · Toque para colocar';
   }
   _loop(){
     if(!this.run)return;const t0=performance.now();
